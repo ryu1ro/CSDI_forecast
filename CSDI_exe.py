@@ -25,7 +25,6 @@ with open(path, "r") as f:
     config = yaml.safe_load(f)
 
 config["model"]["is_unconditional"] = args.unconditional
-# config["model"]["test_missing_ratio"] = args.testmissingratio
 
 print(json.dumps(config, indent=4))
 
