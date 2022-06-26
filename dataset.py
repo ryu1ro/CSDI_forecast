@@ -1,15 +1,13 @@
 import pickle
 
 import os
-import re
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader, Dataset
 
 
-def parse_id(id_, df):
-    observed_values = df[id_*24:id_*24+192].to_numpy()
-    observed_values = np.array(observed_values)
+def parse_sample(timepoint, length, df):
+    observed_values = df.iloc[timepoint:timepoint + length].to_numpy()
     observed_masks = ~np.isnan(observed_values)
 
     observed_values = np.nan_to_num(observed_values)
@@ -18,37 +16,33 @@ def parse_id(id_, df):
     return observed_values, observed_masks
 
 
-class Solar_Dataset(Dataset):
-    def __init__(self, eval_length=192, use_index_list=None, seed=0):
-        self.eval_length = eval_length
-        np.random.seed(seed)  # seed for ground truth choice
+class Hourly_Dataset(Dataset):
+    def __init__(self, data_name='solar', time_length=168+24, seed=0,  use_index_list=None,):
+        self.data_name = data_name
+        self.eval_length = time_length
+        # np.random.seed(seed)  # seed for ground truth choice
 
         self.observed_values = []
         self.observed_masks = []
         path = (
-            "./dataset/solar_nips"  + "_seed" + str(seed) + ".pk"
+            "./dataset/" +self.data_name+ "_seed" + str(seed) + ".pk"
         )
 
-        
-        df = pd.read_csv('./dataset/solar_nips/csv/solar_nips.csv')
-        df = df.rename(columns={df.columns[0]: 'date'})
-        df = df.drop(columns='date')
-        df = df.drop(0)
-        l_total = len(df)
-        l1 = 168
-        l2 = 24
-        idx_last = int((l_total - (l1 + l2))/24)
-
         if os.path.isfile(path) == False:  # if datasetfile is none, create
-            for id_ in range(idx_last+1):
+            df = pd.read_csv('./dataset/csv/' + self.data_name + '.csv')
+            df = df.rename(columns={df.columns[0]: 'date'})
+            df = df.drop(columns='date')
+            # df = df.drop(0)
+            total_time_steps = len(df)
+            for time_point in range(total_time_steps - self.eval_length + 1):
                 try:
-                    observed_values, observed_masks = parse_id(
-                        id_, df
+                    observed_values, observed_masks = parse_sample(
+                        time_point, self.eval_length, df
                     )
                     self.observed_values.append(observed_values)
                     self.observed_masks.append(observed_masks)
                 except Exception as e:
-                    print(id_, e)
+                    print(time_point, e)
                     continue
             self.observed_values = np.array(self.observed_values)
             self.observed_masks = np.array(self.observed_masks)
@@ -80,26 +74,28 @@ class Solar_Dataset(Dataset):
         return len(self.use_index_list)
 
 
-def get_dataloader(seed=1, nfold=None, batch_size=8):
+def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
 
     # only to obtain total length of dataset
-    dataset = Solar_Dataset(seed=seed)
+    dataset = Hourly_Dataset(data_name=data_name, time_length=time_length, seed=seed)
     indlist = np.arange(len(dataset))
+    
+    test_index = indlist[-24*7:]
+    remain_index = indlist[:-24*7]
 
     np.random.seed(seed)
-    np.random.shuffle(indlist)
+    np.random.shuffle(remain_index)
 
-    test_index = indlist[-7:]
-    valid_index = indlist[-12:-7]
-    train_index = indlist[:-12]
+    valid_index = remain_index[-24*5:]
+    train_index = remain_index[:-24*5]
 
-    dataset = Solar_Dataset(
-        use_index_list=train_index,  seed=seed)
+    dataset = Hourly_Dataset(
+        data_name=data_name, time_length=time_length, use_index_list=train_index,  seed=seed)
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=1)
-    valid_dataset = Solar_Dataset(
-        use_index_list=valid_index,  seed=seed)
+    valid_dataset = Hourly_Dataset(
+        data_name=data_name, time_length=time_length, use_index_list=valid_index,  seed=seed)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=0)
-    test_dataset = Solar_Dataset(
-        use_index_list=test_index,  seed=seed)
+    test_dataset = Hourly_Dataset(
+        data_name=data_name, time_length=time_length, use_index_list=test_index,  seed=seed)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=0)
     return train_loader, valid_loader, test_loader
