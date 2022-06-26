@@ -12,6 +12,6 @@ model:
   is_unconditional: 0
   timeemb: 128
 train:
-  batch_size: 64
+  batch_size: 32
   epochs: 50
   lr: 0.001
