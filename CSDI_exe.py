@@ -45,6 +45,7 @@ train_loader, valid_loader, test_loader = get_dataloader(
 
 model = CSDI_base(
     target_dim=target_dim,
+    target_length=168+24,
     config=config,
     device=args.device).to(args.device)
 

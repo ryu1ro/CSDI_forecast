@@ -9,6 +9,8 @@ diffusion:
   schedule: quad
 model:
   featureemb: 16
+  dowemb : 8
+  houremb: 8
   is_unconditional: 0
   timeemb: 128
 train:

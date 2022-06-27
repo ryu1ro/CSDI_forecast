@@ -5,23 +5,32 @@ from diff_models_conv import diff_CSDI
 
 
 class CSDI_base(nn.Module):
-    def __init__(self, target_dim, config, device):
+    def __init__(self, target_dim, target_length, config, device):
         super().__init__()
         self.device = device
-        self.target_dim = target_dim
-
+        self.target_dim = target_dim #number of features K
+        self.target_length = target_length
         self.emb_time_dim = config["model"]["timeemb"]
         self.emb_feature_dim = config["model"]["featureemb"]
+        self.emb_dow_dim = config["model"]["dowemb"]
+        self.emb_hour_dim = config["model"]["houremb"]
         self.is_unconditional = config["model"]["is_unconditional"]
         # self.target_strategy = config["model"]["target_strategy"]
 
-        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim
+        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_dow_dim + self.emb_hour_dim
         if self.is_unconditional == False:
             self.emb_total_dim += 1  # for conditional mask
         self.embed_layer = nn.Embedding(
             num_embeddings=self.target_dim, embedding_dim=self.emb_feature_dim
         )
-
+        #time covariates embedding
+        self.embed_layer_dow = nn.Embedding(
+            num_embeddings=self.target_length, embedding_dim=self.emb_dow_dim
+        )
+        self.embed_layer_hour = nn.Embedding(
+            num_embeddings=self.target_length, embedding_dim=self.emb_hour_dim
+        )
+        
         config_diff = config["diffusion"]
         config_diff["side_dim"] = self.emb_total_dim
 
@@ -58,7 +67,7 @@ class CSDI_base(nn.Module):
         cond_mask[:, :, -forecast_length:] = 0
         return cond_mask
 
-    def get_side_info(self, observed_tp, cond_mask):
+    def get_side_info(self, observed_tp, observed_tc, cond_mask):
         B, K, L = cond_mask.shape
 
         time_embed = self.time_embedding(observed_tp, self.emb_time_dim)  # (B,L,emb)
@@ -68,7 +77,12 @@ class CSDI_base(nn.Module):
         )  # (K,emb)
         feature_embed = feature_embed.unsqueeze(0).unsqueeze(0).expand(B, L, -1, -1)
 
-        side_info = torch.cat([time_embed, feature_embed], dim=-1)  # (B,L,K,*)
+        dow_embed = self.embed_layer_dow(observed_tc[:,:,0])    #(B,L,emb_dim)
+        hour_embed = self.embed_layer_hour(observed_tc[:,:,1])  #(B,L,emb_dim)
+        dow_embed = dow_embed.unsqueeze(2).expand(-1,-1,K,-1)
+        hour_embed = hour_embed.unsqueeze(2).expand(-1,-1,K,-1)
+
+        side_info = torch.cat([time_embed, feature_embed, dow_embed, hour_embed], dim=-1)  # (B,L,K,*)
         side_info = side_info.permute(0, 3, 2, 1)  # (B,*,K,L)
 
         if self.is_unconditional == False:
@@ -166,12 +180,13 @@ class CSDI_base(nn.Module):
             observed_data,
             observed_mask,
             observed_tp,
+            observed_tc,
             for_pattern_mask,
             _,
         ) = self.process_data(batch)
         cond_mask = self.get_forecastmask(observed_mask)
         
-        side_info = self.get_side_info(observed_tp, cond_mask)
+        side_info = self.get_side_info(observed_tp,observed_tc, cond_mask)
 
         loss_func = self.calc_loss if is_train == 1 else self.calc_loss_valid
 
@@ -182,6 +197,7 @@ class CSDI_base(nn.Module):
             observed_data,
             observed_mask,
             observed_tp,
+            observed_tc,
             _,
             cut_length
         ) = self.process_data(batch)
@@ -191,7 +207,7 @@ class CSDI_base(nn.Module):
 
             target_mask = observed_mask - cond_mask
 
-            side_info = self.get_side_info(observed_tp, cond_mask)
+            side_info = self.get_side_info(observed_tp, observed_tc, cond_mask)
 
             samples = self.impute(observed_data, cond_mask, side_info, n_samples)
 
@@ -203,6 +219,7 @@ class CSDI_base(nn.Module):
         observed_data = batch["observed_data"].to(self.device).float()
         observed_mask = batch["observed_mask"].to(self.device).float()
         observed_tp = batch["timepoints"].to(self.device).float()
+        observed_tc = batch["time_covariates"].to(self.device).long()
         # gt_mask = observed_mask
 
         observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
@@ -216,34 +233,34 @@ class CSDI_base(nn.Module):
             observed_data,
             observed_mask,
             observed_tp,
-            # gt_mask,
+            observed_tc,
             for_pattern_mask,
             cut_length,
         )
 
 
-class CSDI_Solar(CSDI_base):
-    def __init__(self, config, device, target_dim=137):
-        super(CSDI_Solar, self).__init__(target_dim, config, device)
+# class CSDI_Solar(CSDI_base):
+#     def __init__(self, config, device, target_dim=137):
+#         super(CSDI_Solar, self).__init__(target_dim, config, device)
 
-    def process_data(self, batch):
-        observed_data = batch["observed_data"].to(self.device).float()
-        observed_mask = batch["observed_mask"].to(self.device).float()
-        observed_tp = batch["timepoints"].to(self.device).float()
-        # gt_mask = observed_mask
+#     def process_data(self, batch):
+#         observed_data = batch["observed_data"].to(self.device).float()
+#         observed_mask = batch["observed_mask"].to(self.device).float()
+#         observed_tp = batch["timepoints"].to(self.device).float()
+#         # gt_mask = observed_mask
 
-        observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
-        observed_mask = observed_mask.permute(0, 2, 1)
-        # gt_mask = gt_mask.permute(0, 2, 1)
+#         observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
+#         observed_mask = observed_mask.permute(0, 2, 1)
+#         # gt_mask = gt_mask.permute(0, 2, 1)
 
-        cut_length = torch.zeros(len(observed_data)).long().to(self.device)
-        for_pattern_mask = observed_mask
+#         cut_length = torch.zeros(len(observed_data)).long().to(self.device)
+#         for_pattern_mask = observed_mask
 
-        return (
-            observed_data,
-            observed_mask,
-            observed_tp,
-            # gt_mask,
-            for_pattern_mask,
-            cut_length,
-        )
+#         return (
+#             observed_data,
+#             observed_mask,
+#             observed_tp,
+#             # gt_mask,
+#             for_pattern_mask,
+#             cut_length,
+#         )
