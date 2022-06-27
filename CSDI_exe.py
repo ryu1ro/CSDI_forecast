@@ -5,7 +5,7 @@ import json
 import yaml
 import os
 
-from main_model import CSDI_Solar
+from main_model import CSDI_base
 from dataset import get_dataloader
 from utils import train, evaluate
 
@@ -16,6 +16,7 @@ parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--unconditional", action="store_true")
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
+parser.add_argument("--dataset", type=str, default='solar')
 
 args = parser.parse_args()
 print(args)
@@ -25,11 +26,12 @@ with open(path, "r") as f:
     config = yaml.safe_load(f)
 
 config["model"]["is_unconditional"] = args.unconditional
+target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-foldername = "./save/Solar" + "_" + current_time + "/"
+foldername = "./save/" + args.dataset + "_" + current_time + "/"
 print('model folder:', foldername)
 os.makedirs(foldername, exist_ok=True)
 with open(foldername + "config.json", "w") as f:
@@ -38,9 +40,13 @@ with open(foldername + "config.json", "w") as f:
 train_loader, valid_loader, test_loader = get_dataloader(
     seed=args.seed,
     batch_size=config["train"]["batch_size"],
+    data_name=args.dataset
 )
 
-model = CSDI_Solar(config, args.device).to(args.device)
+model = CSDI_base(
+    target_dim=target_dim,
+    config=config,
+    device=args.device).to(args.device)
 
 if args.modelfolder == "":
     train(
