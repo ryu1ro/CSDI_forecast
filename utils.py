@@ -168,6 +168,7 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
                         mean_scaler,
                     ],
                     f,
+                    protocol=4
                 )
 
             CRPS = calc_quantile_CRPS(
@@ -184,6 +185,7 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
                         CRPS,
                     ],
                     f,
+                    protocol=4
                 )
                 print("RMSE:", np.sqrt(mse_total / evalpoints_total))
                 print("MAE:", mae_total / evalpoints_total)
