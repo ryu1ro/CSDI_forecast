@@ -5,8 +5,9 @@ from tqdm import tqdm
 import pickle
 
 def calc_batch_mean(batch):
-    batch_mean = batch.mean(dim=1, keepdim=True)
-    return batch/batch_mean, batch_mean
+    batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
+    batch['observed_data'] = batch['observed_data']/batch_mean
+    return batch, batch_mean
 
 
 def train(
