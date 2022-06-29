@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from diff_models_conv import diff_CSDI
+from diff_models import diff_CSDI
 
 
 class CSDI_base(nn.Module):
@@ -30,7 +30,7 @@ class CSDI_base(nn.Module):
         self.embed_layer_hour = nn.Embedding(
             num_embeddings=self.target_length, embedding_dim=self.emb_hour_dim
         )
-        
+
         config_diff = config["diffusion"]
         config_diff["side_dim"] = self.emb_total_dim
 
@@ -185,7 +185,7 @@ class CSDI_base(nn.Module):
             _,
         ) = self.process_data(batch)
         cond_mask = self.get_forecastmask(observed_mask)
-        
+
         side_info = self.get_side_info(observed_tp,observed_tc, cond_mask)
 
         loss_func = self.calc_loss if is_train == 1 else self.calc_loss_valid

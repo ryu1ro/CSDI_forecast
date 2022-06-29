@@ -2,7 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from transformer import LinearTranformerEncodeLayer
 
+
+def get_linear_trans(heads=8, channels=64):
+    encoder = LinearTranformerEncodeLayer(
+        channels=channels, head_count=heads
+    )
+    return encoder
 
 def get_torch_trans(heads=8, layers=1, channels=64):
     encoder_layer = nn.TransformerEncoderLayer(
@@ -105,15 +112,16 @@ class ResidualBlock(nn.Module):
         self.mid_projection = Conv1d_with_init(channels, 2 * channels, 1)
         self.output_projection = Conv1d_with_init(channels, 2 * channels, 1)
 
-        self.time_layer = get_torch_trans(heads=nheads, layers=1, channels=channels)
-        self.feature_layer = get_torch_trans(heads=nheads, layers=1, channels=channels)
+        self.time_layer = get_linear_trans(heads=nheads, channels=channels)
+        self.feature_layer = get_linear_trans(heads=nheads, channels=channels)
 
     def forward_time(self, y, base_shape):
         B, channel, K, L = base_shape
         if L == 1:
             return y
         y = y.reshape(B, channel, K, L).permute(0, 2, 1, 3).reshape(B * K, channel, L)
-        y = self.time_layer(y.permute(2, 0, 1)).permute(1, 2, 0) #(L, B*K, channel) -> (B*K, channel, L)
+        y = self.time_layer(y)
+        # y = self.time_layer(y.permute(2, 0, 1)).permute(1, 2, 0)
         y = y.reshape(B, K, channel, L).permute(0, 2, 1, 3).reshape(B, channel, K * L)
         return y
 
@@ -122,7 +130,8 @@ class ResidualBlock(nn.Module):
         if K == 1:
             return y
         y = y.reshape(B, channel, K, L).permute(0, 3, 1, 2).reshape(B * L, channel, K)
-        y = self.feature_layer(y.permute(2, 0, 1)).permute(1, 2, 0)
+        y = self.feature_layer(y)
+        # y = self.feature_layer(y.permute(2, 0, 1)).permute(1, 2, 0)
         y = y.reshape(B, L, channel, K).permute(0, 2, 3, 1).reshape(B, channel, K * L)
         return y
 
