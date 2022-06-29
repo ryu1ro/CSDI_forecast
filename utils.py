@@ -121,13 +121,17 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
                 test_batch, batch_mean = calc_batch_mean(test_batch)
-                batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1).cuda()
+                batch_mean = batch_mean.cuda()
+
                 output = model.evaluate(test_batch, nsample)
 
                 samples, c_target, eval_points, observed_points, observed_time = output
+                c_target = c_target.permute(0, 2, 1)  # (B,L,K)
+                c_target = c_target * batch_mean
+
+                batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1)
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
                 samples = samples * batch_mean
-                c_target = c_target.permute(0, 2, 1)  # (B,L,K)
                 eval_points = eval_points.permute(0, 2, 1)
                 observed_points = observed_points.permute(0, 2, 1)
 
