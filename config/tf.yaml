@@ -3,15 +3,20 @@ diffusion:
   beta_start: 0.0001
   channels: 64
   diffusion_embedding_dim: 128
-  layers: 8
+  layers: 4
   nheads: 8
   num_steps: 50
   schedule: quad
 model:
   featureemb: 16
+  dowemb : 8
+  houremb: 8
   is_unconditional: 0
   timeemb: 128
 train:
-  batch_size: 4
+  batch_size: 8
   epochs: 50
   lr: 0.001
+target_dim:
+  solar: 137
+  electricity: 370
