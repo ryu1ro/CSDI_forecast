@@ -4,6 +4,10 @@ from torch.optim import Adam
 from tqdm import tqdm
 import pickle
 
+def calc_batch_mean(batch):
+    batch_mean = batch.mean(dim=1, keepdim=True)
+    return batch/batch_mean, batch_mean
+
 
 def train(
     model,
@@ -31,6 +35,7 @@ def train(
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
+                train_batch, _ = calc_batch_mean(train_batch)
                 loss = model(train_batch)
                 loss.backward()
                 avg_loss += loss.item()
@@ -49,6 +54,7 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
+                        valid_batch, _ = calc_batch_mean(valid_batch)
                         loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
@@ -113,10 +119,13 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
         all_generated_samples = []
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
+                test_batch, batch_mean = calc_batch_mean(test_batch)
+                batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1)
                 output = model.evaluate(test_batch, nsample)
 
                 samples, c_target, eval_points, observed_points, observed_time = output
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
+                samples = samples * batch_mean
                 c_target = c_target.permute(0, 2, 1)  # (B,L,K)
                 eval_points = eval_points.permute(0, 2, 1)
                 observed_points = observed_points.permute(0, 2, 1)
@@ -132,7 +141,7 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
                     ((samples_median.values - c_target) * eval_points) ** 2
                 ) * (scaler ** 2)
                 mae_current = (
-                    torch.abs((samples_median.values - c_target) * eval_points) 
+                    torch.abs((samples_median.values - c_target) * eval_points)
                 ) * scaler
 
                 mse_total += mse_current.sum().item()

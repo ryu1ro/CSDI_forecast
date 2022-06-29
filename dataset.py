@@ -92,7 +92,7 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
     # only to obtain total length of dataset
     dataset = Hourly_Dataset(data_name=data_name, time_length=time_length, seed=seed)
     indlist = np.arange(len(dataset))
-    
+
     test_index = indlist[-24*7:]
     remain_index = indlist[:-24*7]
 
@@ -104,11 +104,29 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
 
     dataset = Hourly_Dataset(
         data_name=data_name, time_length=time_length, use_index_list=train_index,  seed=seed)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=1)
+    train_loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=1,
+        num_workers=os.cpu_count()
+        )
+
     valid_dataset = Hourly_Dataset(
         data_name=data_name, time_length=time_length, use_index_list=valid_index,  seed=seed)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=0)
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=batch_size,
+        shuffle=0,
+        num_workers=os.cpu_count()
+        )
+
     test_dataset = Hourly_Dataset(
         data_name=data_name, time_length=time_length, use_index_list=test_index,  seed=seed)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=0)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=0,
+        num_workers=os.cpu_count()
+        )
+
     return train_loader, valid_loader, test_loader
