@@ -6,6 +6,8 @@ import pickle
 
 def calc_batch_mean(batch):
     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
+    zero_mask = (batch_mean==0)
+    batch_mean += zero_mask
     batch['observed_data'] = batch['observed_data']/batch_mean
     return batch, batch_mean
 
