@@ -108,7 +108,8 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
         dataset,
         batch_size=batch_size,
         shuffle=1,
-        num_workers=os.cpu_count()
+        num_workers=os.cpu_count(),
+        pin_memory=True
         )
 
     valid_dataset = Hourly_Dataset(
@@ -117,7 +118,8 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
         valid_dataset,
         batch_size=batch_size,
         shuffle=0,
-        num_workers=os.cpu_count()
+        num_workers=os.cpu_count(),
+        pin_memory=True
         )
 
     test_dataset = Hourly_Dataset(
@@ -126,7 +128,8 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
         test_dataset,
         batch_size=batch_size,
         shuffle=0,
-        num_workers=os.cpu_count()
+        num_workers=os.cpu_count(),
+        pin_memory=True
         )
 
     return train_loader, valid_loader, test_loader
