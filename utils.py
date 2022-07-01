@@ -97,7 +97,7 @@ def train(
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[p1, p2], gamma=0.1
     )
-    device = config['train']['device']
+    device = config['device']
     best_valid_loss = 1e10
     for epoch_no in range(config["epochs"]):
         avg_loss = 0
