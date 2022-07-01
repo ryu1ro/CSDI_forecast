@@ -1,11 +1,12 @@
-import functools
+# import functools
 
 import torch
-import numpy as np
-import abc
+# import numpy as np
+# import abc
 from scipy import integrate
-import sde_lib
+# import sde_lib
 from utils import from_flattened_numpy, to_flattened_numpy, get_score_fn
+import numpy as np
 
 
 
@@ -32,20 +33,29 @@ def ode_sampler(
         if z is None:
         # If not represent, sample the latent code from the prior distibution of the SDE.
             z = sde.prior_sampling(shape).to(device)
-        # x = (z, batch)
 
         def ode_func(t, z, batch=batch):
             z = from_flattened_numpy(z, shape).to(device).type(torch.float32)
             vec_t = torch.ones(shape[0], device=device) * t
-            # x = (z, batch)
             drift = drift_fn(model, sde, batch, z, vec_t)
             return to_flattened_numpy(drift)
 
 
         # Black-box ODE solver for the probability flow ODE
-        solution = integrate.solve_ivp(ode_func, (sde.T, eps), to_flattened_numpy(z),
-                                        rtol=rtol, atol=atol, method=method)
+        solution = integrate.solve_ivp(
+            ode_func,
+            (sde.T, eps),
+            to_flattened_numpy(z),
+            rtol=rtol, atol=atol, method=method)
+        # solution = integrate.solve_ivp(
+        #     ode_func,
+        #     (sde.T, eps),
+        #     to_flattened_numpy(z),
+        #     t_eval=np.linspace(sde.T, eps, 50)
+        #     )
+
         # nfe = solution.nfev
+        # print(nfe)
         x = torch.tensor(solution.y[:, -1]).reshape(shape).to(device).type(torch.float32)
 
     return x
