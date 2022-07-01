@@ -1,8 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
 from transformer import LinearTranformerEncodeLayer
+
 
 
 def get_linear_trans(heads=8, channels=64):
@@ -22,6 +24,28 @@ def Conv1d_with_init(in_channels, out_channels, kernel_size):
     layer = nn.Conv1d(in_channels, out_channels, kernel_size)
     nn.init.kaiming_normal_(layer.weight)
     return layer
+
+class GaussianFourierProjection(nn.Module):
+  """Gaussian random features for encoding time steps."""
+  def __init__(self, embed_dim=128, projection_dim=None, scale=30.):
+    super().__init__()
+    # Randomly sample weights during initialization. These weights are fixed
+    # during optimization and are not trainable.
+    self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+
+    if projection_dim is None:
+        projection_dim = embed_dim
+    self.projection1 = nn.Linear(embed_dim, projection_dim)
+    self.projection2 = nn.Linear(projection_dim, projection_dim)
+  def forward(self, x):
+    x_proj = x[:, None] * self.W[None, :] * 2 * np.pi
+    x = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+    x = self.projection1(x)
+    x = F.silu(x)
+    x = self.projection2(x)
+    x = F.silu(x)
+
+    return x
 
 
 class DiffusionEmbedding(nn.Module):
@@ -58,9 +82,8 @@ class diff_CSDI(nn.Module):
         super().__init__()
         self.channels = config["channels"]
 
-        self.diffusion_embedding = DiffusionEmbedding(
-            num_steps=config["num_steps"],
-            embedding_dim=config["diffusion_embedding_dim"],
+        self.diffusion_embedding = GaussianFourierProjection(
+            embed_dim=config["diffusion_embedding_dim"]
         )
 
         self.input_projection = Conv1d_with_init(inputdim, self.channels, 1)

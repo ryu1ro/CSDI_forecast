@@ -4,16 +4,84 @@ from torch.optim import Adam
 from tqdm import tqdm
 import pickle
 
-def calc_batch_mean(batch):
+def get_model_fn(model, train=False):
+
+    def model_fn(x, labels, batch):
+        """Compute the output of the score-based model.
+        Args:
+        x: A mini-batch of input data.
+        labels: A mini-batch of conditioning variables for time steps. Should be interpreted differently
+            for different models.
+        Returns:
+        A tuple of (model output, new mutable states)
+        """
+        if not train:
+            model.eval()
+            return model(x, labels, batch)
+        else:
+            model.train()
+            return model(x, labels, batch)
+
+    return model_fn
+
+
+def get_score_fn(sde, model, batch, train=False):
+
+    model_fn = get_model_fn(model, train=train)
+
+
+    def score_fn(x, t, batch=batch):
+        # Scale neural network output by standard deviation and flip sign
+        # For VP-trained models, t=0 corresponds to the lowest noise level
+        # The maximum value of time embedding is assumed to 999 for
+        # continuously-trained models.
+        # observed_data, batch = x
+        labels = t * 999
+        score = model_fn(x, labels, batch)
+        std = sde.marginal_prob(torch.zeros_like(x), t)[1]
+        score = -score / std[:, None, None]
+        return score
+
+    return score_fn
+
+def get_forecastmask(observed_mask, forecast_length=24):
+        cond_mask = torch.ones_like(observed_mask) #(B, K, L)
+        cond_mask[:, :, -forecast_length:] = 0
+        return cond_mask
+
+def process_data(batch, device='cuda'):
     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
     zero_mask = (batch_mean==0)
     batch_mean += zero_mask
     batch['observed_data'] = batch['observed_data']/batch_mean
-    return batch, batch_mean
+    batch_mean = batch_mean.to(device).float() #(B, 1, K)
+
+    observed_data = batch["observed_data"].to(device).float()
+    observed_mask = batch["observed_mask"].to(device).float()
+    observed_tp = batch["timepoints"].to(device).float()
+    observed_tc = batch["time_covariates"].to(device).long()
+
+    observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
+    observed_mask = observed_mask.permute(0, 2, 1)
+    cond_mask = get_forecastmask(observed_mask).to(device).float()
+
+    cut_length = torch.zeros(len(observed_data)).long().to(device)
+    for_pattern_mask = observed_mask
+
+    return (
+        observed_data,
+        observed_mask,
+        cond_mask,
+        observed_tp,
+        observed_tc,
+        # for_pattern_mask,
+        # cut_length,
+    ), batch_mean
 
 
 def train(
     model,
+    loss_fn,
     config,
     train_loader,
     valid_loader=None,
@@ -29,17 +97,21 @@ def train(
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[p1, p2], gamma=0.1
     )
-
+    device = config['train']['device']
     best_valid_loss = 1e10
     for epoch_no in range(config["epochs"]):
         avg_loss = 0
-        model.train()
+        # model.train()
         with tqdm(train_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
-                train_batch, _ = calc_batch_mean(train_batch)
-                loss = model(train_batch)
+                train_batch, _ = process_data(train_batch, device=device)
+
+                loss = loss_fn(
+                    batch=train_batch,
+                    is_train=True,
+                )
                 loss.backward()
                 avg_loss += loss.item()
                 optimizer.step()
@@ -57,8 +129,12 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
-                        valid_batch, _ = calc_batch_mean(valid_batch)
-                        loss = model(valid_batch, is_train=0)
+                        valid_batch, _ = process_data(valid_batch, device=device)
+
+                        loss = loss_fn(
+                            batch=valid_batch,
+                            is_train=False,
+                            )
                         avg_loss_valid += loss.item()
                         it.set_postfix(
                             ordered_dict={
@@ -90,9 +166,9 @@ def calc_denominator(target, eval_points):
     return torch.sum(torch.abs(target * eval_points))
 
 
-def calc_quantile_CRPS(target, forecast, eval_points, mean_scaler, scaler):
-    target = target * scaler + mean_scaler
-    forecast = forecast * scaler + mean_scaler
+def calc_quantile_CRPS(target, forecast, eval_points):
+    # target = target * scaler + mean_scaler
+    # forecast = forecast * scaler + mean_scaler
 
     quantiles = np.arange(0.05, 1.0, 0.05)
     denom = calc_denominator(target, eval_points)
@@ -107,7 +183,13 @@ def calc_quantile_CRPS(target, forecast, eval_points, mean_scaler, scaler):
     return CRPS.item() / len(quantiles)
 
 
-def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldername=""):
+def evaluate(
+    model,
+    sampler,
+    test_loader,
+    nsample=100,
+    foldername="",
+    device='cuda'):
 
     with torch.no_grad():
         model.eval()
@@ -122,12 +204,22 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
         all_generated_samples = []
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
-                test_batch, batch_mean = calc_batch_mean(test_batch)
-                batch_mean = batch_mean.cuda()
+                test_batch, batch_mean = process_data(test_batch, device=device)
 
-                output = model.evaluate(test_batch, nsample)
+                (
+                    c_target,
+                    observed_points,
+                    eval_points,
+                    observed_time,
+                    _,
+                ) = test_batch
 
-                samples, c_target, eval_points, observed_points, observed_time = output
+                samples = []
+                for i in range(nsample):
+                    temp_sample = sampler(batch=test_batch)
+                    samples.append(temp_sample.unsqueeze(1))
+                samples = torch.cat(samples,dim=1)
+
                 c_target = c_target.permute(0, 2, 1)  # (B,L,K)
                 c_target = c_target * batch_mean
 
@@ -146,10 +238,10 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
 
                 mse_current = (
                     ((samples_median.values - c_target) * eval_points) ** 2
-                ) * (scaler ** 2)
+                )
                 mae_current = (
                     torch.abs((samples_median.values - c_target) * eval_points)
-                ) * scaler
+                )
 
                 mse_total += mse_current.sum().item()
                 mae_total += mae_current.sum().item()
@@ -180,15 +272,15 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
                         all_evalpoint,
                         all_observed_point,
                         all_observed_time,
-                        scaler,
-                        mean_scaler,
+                        # scaler,
+                        # mean_scaler,
                     ],
                     f,
                     protocol=4
                 )
 
             CRPS = calc_quantile_CRPS(
-                all_target, all_generated_samples, all_evalpoint, mean_scaler, scaler
+                all_target, all_generated_samples, all_evalpoint
             )
 
             with open(
@@ -206,3 +298,12 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
                 print("RMSE:", np.sqrt(mse_total / evalpoints_total))
                 print("MAE:", mae_total / evalpoints_total)
                 print("CRPS:", CRPS)
+
+def to_flattened_numpy(x):
+  """Flatten a torch tensor `x` and convert it to numpy."""
+  return x.detach().cpu().numpy().reshape((-1,))
+
+
+def from_flattened_numpy(x, shape):
+  """Form a torch tensor with the given `shape` from a flattened numpy array `x`."""
+  return torch.from_numpy(x.reshape(shape))

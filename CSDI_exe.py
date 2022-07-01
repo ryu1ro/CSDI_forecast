@@ -4,10 +4,15 @@ import datetime
 import json
 import yaml
 import os
+import functools
 
-from main_model import CSDI_base
+from main_model_sde import CSDI_sde
+from losses import loss_fn_sde
 from dataset import get_dataloader
 from utils import train, evaluate
+from sde_lib import VPSDE
+from sampling import ode_sampler
+
 
 parser = argparse.ArgumentParser(description="CSDI")
 parser.add_argument("--config", type=str, default="base.yaml")
@@ -26,6 +31,7 @@ with open(path, "r") as f:
     config = yaml.safe_load(f)
 
 config["model"]["is_unconditional"] = args.unconditional
+config["train"]["device"] = args.device
 target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
@@ -43,15 +49,40 @@ train_loader, valid_loader, test_loader = get_dataloader(
     data_name=args.dataset
 )
 
-model = CSDI_base(
+model = CSDI_sde(
     target_dim=target_dim,
     target_length=168+24,
     config=config,
     device=args.device).to(args.device)
 
+sde = VPSDE()
+
+loss_fn = functools.partial(
+    loss_fn_sde,
+    model=model,
+    sde=sde,
+    device=args.device,
+    eps=1e-5
+)
+
+sampler = functools.partial(
+    ode_sampler,
+    model=model,
+    sde=sde,
+    atol=1e-5,
+    rtol=1e-5,
+    device=args.device,
+    z=None,
+    eps=1e-3,
+    method='RK45'
+)
+
+
+
 if args.modelfolder == "":
     train(
         model,
+        loss_fn,
         config["train"],
         train_loader,
         valid_loader=valid_loader,
@@ -60,4 +91,11 @@ if args.modelfolder == "":
 else:
     model.load_state_dict(torch.load("./save/" + args.modelfolder + "/model.pth"))
 
-evaluate(model, test_loader, nsample=args.nsample, scaler=1, foldername=foldername)
+evaluate(
+    model,
+    sampler,
+    test_loader,
+    nsample=args.nsample,
+    # scaler=1,
+    foldername=foldername,
+    device=args.device)
