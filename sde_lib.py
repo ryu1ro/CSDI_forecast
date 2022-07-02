@@ -252,3 +252,11 @@ class VESDE(SDE):
     f = torch.zeros_like(x)
     G = torch.sqrt(sigma ** 2 - adjacent_sigma ** 2)
     return f, G
+
+def get_SDE(sde_name):
+    sde_dict = {
+      'vp': VPSDE(),
+      'subvp': subVPSDE(),
+      've': VESDE()
+    }
+    return sde_dict[sde_name]

@@ -10,7 +10,7 @@ from main_model_sde import CSDI_sde
 from losses import loss_fn_sde
 from dataset import get_dataloader
 from utils import train, evaluate
-from sde_lib import VPSDE
+from sde_lib import get_SDE
 from sampling import ode_sampler
 
 
@@ -18,11 +18,12 @@ parser = argparse.ArgumentParser(description="CSDI")
 parser.add_argument("--config", type=str, default="base.yaml")
 parser.add_argument('--device', default='cuda', help='Device for Attack')
 parser.add_argument("--seed", type=int, default=1)
-parser.add_argument("--unconditional", action="store_true")
+# parser.add_argument("--unconditional", action="store_true")
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--precision", type=float, default=1e-5)
+parser.add_argument("--sde", type=str, default='vp')
 
 args = parser.parse_args()
 print(args)
@@ -31,15 +32,17 @@ path = "config/" + args.config
 with open(path, "r") as f:
     config = yaml.safe_load(f)
 
-config["model"]["is_unconditional"] = args.unconditional
+# config["model"]["is_unconditional"] = args.unconditional
 config["train"]["device"] = args.device
-config["train"]["precision"] = args.precision
+config["model"]["sde"] = args.sde
+config["model"]["precision"] = args.precision
+
 target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-foldername = "./save/" + args.dataset + "_" + current_time + "/"
+foldername = "./save/" + args.dataset + '_' + args.sde + "_seed" + str(args.seed) +'_'+ current_time + "/"
 print('model folder:', foldername)
 os.makedirs(foldername, exist_ok=True)
 with open(foldername + "config.json", "w") as f:
@@ -48,6 +51,7 @@ with open(foldername + "config.json", "w") as f:
 train_loader, valid_loader, test_loader = get_dataloader(
     seed=args.seed,
     batch_size=config["train"]["batch_size"],
+    test_batch_size=1,
     data_name=args.dataset
 )
 
@@ -57,7 +61,7 @@ model = CSDI_sde(
     config=config,
     device=args.device).to(args.device)
 
-sde = VPSDE()
+sde = get_SDE(args.sde)
 
 loss_fn = functools.partial(
     loss_fn_sde,
@@ -66,7 +70,6 @@ loss_fn = functools.partial(
     device=args.device,
     eps=1e-5
 )
-
 
 
 if args.modelfolder == "":

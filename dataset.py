@@ -87,7 +87,7 @@ class Hourly_Dataset(Dataset):
         return len(self.use_index_list)
 
 
-def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
+def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8, test_batch_size=1):
 
     # only to obtain total length of dataset
     dataset = Hourly_Dataset(data_name=data_name, time_length=time_length, seed=seed)
@@ -126,7 +126,7 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
         data_name=data_name, time_length=time_length, use_index_list=test_index,  seed=seed)
     test_loader = DataLoader(
         test_dataset,
-        batch_size=batch_size,
+        batch_size=test_batch_size,
         shuffle=0,
         num_workers=os.cpu_count(),
         pin_memory=True
