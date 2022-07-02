@@ -209,7 +209,7 @@ def evaluate(
                 (
                     c_target,
                     observed_points,
-                    eval_points,
+                    cond_mask,
                     observed_time,
                     _,
                 ) = test_batch
@@ -222,6 +222,8 @@ def evaluate(
 
                 c_target = c_target.permute(0, 2, 1)  # (B,L,K)
                 c_target = c_target * batch_mean
+
+                eval_points = observed_points - cond_mask
 
                 batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1)
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
