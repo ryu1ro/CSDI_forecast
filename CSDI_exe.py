@@ -22,6 +22,7 @@ parser.add_argument("--unconditional", action="store_true")
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
+parser.add_argument("--precision", type=float, default=1e-5)
 
 args = parser.parse_args()
 print(args)
@@ -32,6 +33,7 @@ with open(path, "r") as f:
 
 config["model"]["is_unconditional"] = args.unconditional
 config["train"]["device"] = args.device
+config["train"]["precision"] = args.precision
 target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
@@ -84,8 +86,8 @@ sampler = functools.partial(
     ode_sampler,
     model=model,
     sde=sde,
-    atol=1e-3,
-    rtol=1e-3,
+    atol=args.precision,
+    rtol=args.precision,
     device=args.device,
     z=None,
     eps=1e-3,
