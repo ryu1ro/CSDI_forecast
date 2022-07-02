@@ -14,7 +14,7 @@ model:
   is_unconditional: 0
   timeemb: 128
 train:
-  batch_size: 4
+  batch_size: 8
   epochs: 50
   lr: 0.001
 target_dim:
