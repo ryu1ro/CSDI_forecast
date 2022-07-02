@@ -93,7 +93,7 @@ def get_dataloader(seed=1, data_name='solar', time_length=168+24, batch_size=8):
     dataset = Hourly_Dataset(data_name=data_name, time_length=time_length, seed=seed)
     indlist = np.arange(len(dataset))
 
-    test_index = indlist[-24*7::7]
+    test_index = indlist[-24*7::24]
     remain_index = indlist[:-24*7]
 
     np.random.seed(seed)
