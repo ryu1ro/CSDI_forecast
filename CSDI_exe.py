@@ -65,18 +65,6 @@ loss_fn = functools.partial(
     eps=1e-5
 )
 
-sampler = functools.partial(
-    ode_sampler,
-    model=model,
-    sde=sde,
-    atol=1e-3,
-    rtol=1e-3,
-    device=args.device,
-    z=None,
-    eps=1e-3,
-    method='RK45'
-)
-
 
 
 if args.modelfolder == "":
@@ -90,6 +78,20 @@ if args.modelfolder == "":
     )
 else:
     model.load_state_dict(torch.load("./save/" + args.modelfolder + "/model.pth"))
+
+
+sampler = functools.partial(
+    ode_sampler,
+    model=model,
+    sde=sde,
+    atol=1e-3,
+    rtol=1e-3,
+    device=args.device,
+    z=None,
+    eps=1e-3,
+    method='RK45'
+)
+
 
 evaluate(
     model,
