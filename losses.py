@@ -7,14 +7,17 @@ def loss_fn_ddpm(model, batch, device='cuda', num_steps=50):
     (
         observed_data,
         observed_mask,
-        observed_tp,
-        observed_tc,
-        for_pattern_mask,
+        cond_mask,
+        _,
         _,
     ) = batch
     B, K, L = observed_data.shape
     t = torch.randint(0, num_steps, [B]).to(device)
-    score, noise, cond_mask = model(batch, t)
+    current_alpha = model.alpha_torch[t]  # (B,1,1)
+    noise = torch.randn_like(observed_data)
+    noisy_data = (current_alpha ** 0.5) * observed_data + (1.0 - current_alpha) ** 0.5 * noise
+
+    score= model(noisy_data, t, batch)
     target_mask = observed_mask - cond_mask
     residual = (noise - score) * target_mask
     num_eval = target_mask.sum()

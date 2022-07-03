@@ -59,3 +59,28 @@ def ode_sampler(
         x = torch.tensor(solution.y[:, -1]).reshape(shape).to(device).type(torch.float32)
 
     return x
+
+def ddpm_sampler(batch, model):
+    (
+        observed_data,
+        observed_mask,
+        cond_mask,
+        _,
+        _,
+    ) = batch
+    with torch.no_grad():
+        target_mask = observed_mask - cond_mask
+        current_sample = torch.randn_like(observed_data)
+        for t in range(model.num_steps - 1, -1, -1):
+            noisy_target = ((1 - cond_mask) * current_sample).unsqueeze(1)
+            score = model(noisy_target, t, batch)
+            coeff1 = 1 / model.alpha_hat[t] ** 0.5
+            coeff2 = (1 - model.alpha_hat[t]) / (1 - model.alpha[t]) ** 0.5
+            current_sample = coeff1 * (current_sample - coeff2 * score)
+            if t > 0:
+                noise = torch.randn_like(current_sample)
+                sigma = (
+                    (1.0 - model.alpha[t - 1]) / (1.0 - model.alpha[t]) * model.beta[t]
+                ) ** 0.5
+                current_sample += sigma * noise
+    return current_sample
