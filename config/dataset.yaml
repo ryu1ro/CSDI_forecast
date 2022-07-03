@@ -1,0 +1,6 @@
+solar:
+  seq_len: 192
+  feature_len: 137
+electricity:
+  seq_len: 192
+  feature_len: 370

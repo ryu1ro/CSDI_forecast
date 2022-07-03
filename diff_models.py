@@ -3,9 +3,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from transformer import LinearTranformerEncodeLayer
+from transformer import LinearTranformerEncodeLayer, NystromTranformerEncodeLayer
 
 
+
+def get_nystrom_trans(seq_len, num_landmarks=64, heads=8, channels=64, is_padding=False):
+    encoder = NystromTranformerEncodeLayer(
+        channels=channels,
+        head_count=heads,
+        seq_len=seq_len,
+        num_landmarks=num_landmarks,
+        is_padding=is_padding
+    )
+    return encoder
 
 def get_linear_trans(heads=8, channels=64):
     encoder = LinearTranformerEncodeLayer(
@@ -98,6 +108,9 @@ class diff_CSDI(nn.Module):
                     channels=self.channels,
                     diffusion_embedding_dim=config["diffusion_embedding_dim"],
                     nheads=config["nheads"],
+                    seq_len=config['seq_len'],
+                    feature_len=config['feature_len'],
+                    num_landmarks=config['num_landmarks'],
                 )
                 for _ in range(config["layers"])
             ]
@@ -128,15 +141,39 @@ class diff_CSDI(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, side_dim, channels, diffusion_embedding_dim, nheads):
+    def __init__(
+        self,
+        side_dim,
+        channels,
+        diffusion_embedding_dim,
+        nheads,
+        seq_len,
+        feature_len,
+        num_landmarks
+        ):
         super().__init__()
         self.diffusion_projection = nn.Linear(diffusion_embedding_dim, channels)
         self.cond_projection = Conv1d_with_init(side_dim, 2 * channels, 1)
         self.mid_projection = Conv1d_with_init(channels, 2 * channels, 1)
         self.output_projection = Conv1d_with_init(channels, 2 * channels, 1)
 
-        self.time_layer = get_linear_trans(heads=nheads, channels=channels)
-        self.feature_layer = get_linear_trans(heads=nheads, channels=channels)
+        self.time_layer = get_nystrom_trans(
+            seq_len=seq_len,
+            num_landmarks=num_landmarks,
+            heads=nheads,
+            channels=channels,
+            is_padding=False
+            )
+        self.feature_layer = get_nystrom_trans(
+            seq_len=feature_len,
+            num_landmarks=num_landmarks,
+            heads=nheads,
+            channels=channels,
+            is_padding=True
+            )
+
+        # self.time_layer = get_linear_trans(heads=nheads, channels=channels)
+        # self.feature_layer = get_linear_trans(heads=nheads, channels=channels)
 
     def forward_time(self, y, base_shape):
         B, channel, K, L = base_shape

@@ -32,12 +32,17 @@ path = "config/" + args.config
 with open(path, "r") as f:
     config = yaml.safe_load(f)
 
+data_path = "config/dataset.yaml"
+with open(data_path, "r") as f:
+    data_config = yaml.safe_load(f)
+
 # config["model"]["is_unconditional"] = args.unconditional
 config["train"]["device"] = args.device
 config["model"]["sde"] = args.sde
 config["model"]["precision"] = args.precision
-
-target_dim = config['target_dim'][args.dataset]
+config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
+config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
+# target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
 
@@ -56,8 +61,8 @@ train_loader, valid_loader, test_loader = get_dataloader(
 )
 
 model = CSDI_sde(
-    target_dim=target_dim,
-    target_length=168+24,
+    # target_dim=target_dim,
+    # target_length=168+24,
     config=config,
     device=args.device).to(args.device)
 

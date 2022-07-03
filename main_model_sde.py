@@ -5,11 +5,11 @@ from diff_models import diff_CSDI
 
 
 class CSDI_sde(nn.Module):
-    def __init__(self, target_dim, target_length, config, device):
+    def __init__(self, config, device):
         super().__init__()
         self.device = device
-        self.target_dim = target_dim #number of features K
-        self.target_length = target_length
+        self.feature_len = config['diffusion']['feature_len'] #number of features K
+        self.seq_len = config['diffusion']['seq_len']
         self.emb_time_dim = config["model"]["timeemb"]
         self.emb_feature_dim = config["model"]["featureemb"]
         self.emb_dow_dim = config["model"]["dowemb"]
@@ -18,14 +18,14 @@ class CSDI_sde(nn.Module):
         self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_dow_dim + self.emb_hour_dim
         self.emb_total_dim += 1  # for conditional mask
         self.embed_layer = nn.Embedding(
-            num_embeddings=self.target_dim, embedding_dim=self.emb_feature_dim
+            num_embeddings=self.feature_len, embedding_dim=self.emb_feature_dim
         )
         #time covariates embedding
         self.embed_layer_dow = nn.Embedding(
-            num_embeddings=self.target_length, embedding_dim=self.emb_dow_dim
+            num_embeddings=self.seq_len, embedding_dim=self.emb_dow_dim
         )
         self.embed_layer_hour = nn.Embedding(
-            num_embeddings=self.target_length, embedding_dim=self.emb_hour_dim
+            num_embeddings=self.seq_len, embedding_dim=self.emb_hour_dim
         )
 
         config_diff = config["diffusion"]
@@ -50,7 +50,7 @@ class CSDI_sde(nn.Module):
         time_embed = self.time_embedding(observed_tp, self.emb_time_dim)  # (B,L,emb)
         time_embed = time_embed.unsqueeze(2).expand(-1, -1, K, -1)
         feature_embed = self.embed_layer(
-            torch.arange(self.target_dim).to(self.device)
+            torch.arange(self.feature_len).to(self.device)
         )  # (K,emb)
         feature_embed = feature_embed.unsqueeze(0).unsqueeze(0).expand(B, L, -1, -1)
 
