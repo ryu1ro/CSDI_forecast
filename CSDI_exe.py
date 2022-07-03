@@ -24,6 +24,7 @@ parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--precision", type=float, default=1e-5)
 parser.add_argument("--sde", type=str, default='vp')
+parser.add_argument("--landmarks", type=int, default=64)
 
 args = parser.parse_args()
 print(args)
@@ -42,6 +43,7 @@ config["model"]["sde"] = args.sde
 config["model"]["precision"] = args.precision
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
+config["diffusion"]["num_landmarks"] = args.landmarks
 # target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
