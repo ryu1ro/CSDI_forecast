@@ -4,13 +4,46 @@ from torch.optim import Adam
 from tqdm import tqdm
 import pickle
 
-def calc_batch_mean(batch):
+# def calc_batch_mean(batch):
+#     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
+#     zero_mask = (batch_mean==0)
+#     batch_mean += zero_mask
+#     batch['observed_data'] = batch['observed_data']/batch_mean
+#     return batch, batch_mean
+
+def get_forecastmask(observed_mask, forecast_length=24):
+    cond_mask = torch.ones_like(observed_mask) #(B, K, L)
+    cond_mask[:, :, -forecast_length:] = 0
+    return cond_mask
+
+def process_data(batch, device='cuda'):
     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
     zero_mask = (batch_mean==0)
     batch_mean += zero_mask
     batch['observed_data'] = batch['observed_data']/batch_mean
-    return batch, batch_mean
+    batch_mean = batch_mean.to(device).float() #(B, 1, K)
 
+    observed_data = batch["observed_data"].to(device).float()
+    observed_mask = batch["observed_mask"].to(device).float()
+    observed_tp = batch["timepoints"].to(device).float()
+    observed_tc = batch["time_covariates"].to(device).long()
+
+    observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
+    observed_mask = observed_mask.permute(0, 2, 1)
+    cond_mask = get_forecastmask(observed_mask).to(device).float()
+
+    cut_length = torch.zeros(len(observed_data)).long().to(device)
+    for_pattern_mask = observed_mask
+
+    return (
+        observed_data,
+        observed_mask,
+        cond_mask,
+        observed_tp,
+        observed_tc,
+        # for_pattern_mask,
+        cut_length,
+    ), batch_mean
 
 def train(
     model,
@@ -19,6 +52,7 @@ def train(
     valid_loader=None,
     valid_epoch_interval=5,
     foldername="",
+    device='cuda'
 ):
     optimizer = Adam(model.parameters(), lr=config["lr"], weight_decay=1e-6)
     if foldername != "":
@@ -29,7 +63,6 @@ def train(
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[p1, p2], gamma=0.1
     )
-
     best_valid_loss = 1e10
     for epoch_no in range(config["epochs"]):
         avg_loss = 0
@@ -38,7 +71,7 @@ def train(
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
-                train_batch, _ = calc_batch_mean(train_batch)
+                train_batch, _ = process_data(train_batch, device=device)
                 loss = model(train_batch)
                 loss.backward()
                 avg_loss += loss.item()
@@ -57,7 +90,7 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
-                        valid_batch, _ = calc_batch_mean(valid_batch)
+                        valid_batch, _ = process_data(valid_batch, device=device)
                         loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
@@ -107,7 +140,15 @@ def calc_quantile_CRPS(target, forecast, eval_points, mean_scaler, scaler):
     return CRPS.item() / len(quantiles)
 
 
-def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldername=""):
+def evaluate(
+    model,
+    test_loader,
+    nsample=100,
+    scaler=1,
+    mean_scaler=0,
+    foldername="",
+    device='cuda'
+    ):
 
     with torch.no_grad():
         model.eval()
@@ -122,8 +163,7 @@ def evaluate(model, test_loader, nsample=100, scaler=1, mean_scaler=0, foldernam
         all_generated_samples = []
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
-                test_batch, batch_mean = calc_batch_mean(test_batch)
-                batch_mean = batch_mean.cuda()
+                test_batch, batch_mean = process_data(test_batch, device=device)
 
                 output = model.evaluate(test_batch, nsample)
 

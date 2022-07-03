@@ -13,25 +13,33 @@ parser = argparse.ArgumentParser(description="CSDI")
 parser.add_argument("--config", type=str, default="base.yaml")
 parser.add_argument('--device', default='cuda', help='Device for Attack')
 parser.add_argument("--seed", type=int, default=1)
-parser.add_argument("--unconditional", action="store_true")
+# parser.add_argument("--unconditional", action="store_true")
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
+parser.add_argument("--landmarks", type=int, default=32)
 
 args = parser.parse_args()
 print(args)
+
 
 path = "config/" + args.config
 with open(path, "r") as f:
     config = yaml.safe_load(f)
 
-config["model"]["is_unconditional"] = args.unconditional
-target_dim = config['target_dim'][args.dataset]
+data_path = "config/dataset.yaml"
+with open(data_path, "r") as f:
+    data_config = yaml.safe_load(f)
+
+# config["model"]["is_unconditional"] = args.unconditional
+# target_dim = config['target_dim'][args.dataset]
 
 print(json.dumps(config, indent=4))
+config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
+config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-foldername = "./save/" + args.dataset + "_" + current_time + "/"
+foldername = "./save/" + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"
 print('model folder:', foldername)
 os.makedirs(foldername, exist_ok=True)
 with open(foldername + "config.json", "w") as f:
@@ -40,12 +48,11 @@ with open(foldername + "config.json", "w") as f:
 train_loader, valid_loader, test_loader = get_dataloader(
     seed=args.seed,
     batch_size=config["train"]["batch_size"],
-    data_name=args.dataset
+    data_name=args.dataset,
+    test_batch_size=1
 )
 
 model = CSDI_base(
-    target_dim=target_dim,
-    target_length=168+24,
     config=config,
     device=args.device).to(args.device)
 
@@ -55,9 +62,17 @@ if args.modelfolder == "":
         config["train"],
         train_loader,
         valid_loader=valid_loader,
-        foldername=foldername
+        foldername=foldername,
+        device=args.device
     )
 else:
-    model.load_state_dict(torch.load("./save/" + args.modelfolder + "/model.pth"))
+    model.load_state_dict(torch.load("./save/" + args.dataset +'/'+ args.modelfolder + "/model.pth"))
 
-evaluate(model, test_loader, nsample=args.nsample, scaler=1, foldername=foldername)
+evaluate(
+    model,
+    test_loader,
+    nsample=args.nsample,
+    scaler=1,
+    foldername=foldername,
+    device=args.device
+    )
