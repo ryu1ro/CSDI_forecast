@@ -40,7 +40,7 @@ config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-foldername = "./save/" + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"
+foldername = "./save/" + args.dataset  +'_'+args.tf+ "_seed" + str(args.seed) +'_'+  current_time + "/"
 print('model folder:', foldername)
 os.makedirs(foldername, exist_ok=True)
 with open(foldername + "config.json", "w") as f:
