@@ -10,6 +10,7 @@ diffusion:
     name: linear
     nheads: 8
     channels: 64
+    landmarks: 32
 
 model:
   featureemb: 16

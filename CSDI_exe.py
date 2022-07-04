@@ -13,10 +13,10 @@ parser = argparse.ArgumentParser(description="CSDI")
 parser.add_argument("--config", type=str, default="base.yaml")
 parser.add_argument('--device', default='cuda', help='Device for Attack')
 parser.add_argument("--seed", type=int, default=1)
-# parser.add_argument("--unconditional", action="store_true")
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
+parser.add_argument("--tf", type=str, default='linear')
 parser.add_argument("--landmarks", type=int, default=32)
 
 args = parser.parse_args()
@@ -33,6 +33,7 @@ with open(data_path, "r") as f:
 
 # config["model"]["is_unconditional"] = args.unconditional
 # target_dim = config['target_dim'][args.dataset]
+config["diffusion"]["transformer"]['name'] = args.tf
 
 print(json.dumps(config, indent=4))
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']

@@ -2,28 +2,30 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from transformer import LinearTranformerEncodeLayer
+from transformer import LinearTranformerEncodeLayer, NystromformerEncodeLayer
 
 
 def get_trans_encoder(config):
     if config['name']=='linear':
         encoder = LinearTranformerEncodeLayer(
             channels=config['channels'],
-            head_count=config['nheads'])
-        return encoder
+            head_count=config['nheads']
+            )
 
-# def get_linear_trans(heads=8, channels=64):
-#     encoder = LinearTranformerEncodeLayer(
-#         channels=channels, head_count=heads
-#     )
-#     return encoder
-
-def get_torch_trans(heads=8, layers=1, channels=64):
-    encoder_layer = nn.TransformerEncoderLayer(
-        d_model=channels, nhead=heads, dim_feedforward=64, activation="gelu"
-    )
-    return nn.TransformerEncoder(encoder_layer, num_layers=layers)
-
+    elif config['name']=='nystrom':
+        encoder = NystromformerEncodeLayer(
+            channels=config['channels'],
+            head_count=config['nheads'],
+            num_landmarks=config['landmarks']
+            )
+    elif config['name']=='normal':
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=config['channels'],
+            nhead=config['nheads'],
+            dim_feedforward=64,
+            activation="gelu")
+        encoder = nn.TransformerEncoder(encoder_layer, num_layers=1)
+    return encoder
 
 def Conv1d_with_init(in_channels, out_channels, kernel_size):
     layer = nn.Conv1d(in_channels, out_channels, kernel_size)
