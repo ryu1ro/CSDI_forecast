@@ -60,11 +60,6 @@ class CSDI_base(nn.Module):
         pe[:, :, 1::2] = torch.cos(position * div_term)
         return pe
 
-    # def get_forecastmask(self, observed_mask, forecast_length=24):
-    #     cond_mask = torch.ones_like(observed_mask) #(B, K, L)
-    #     cond_mask[:, :, -forecast_length:] = 0
-    #     return cond_mask
-
     def get_side_info(self, observed_tp, observed_tc, cond_mask):
         B, K, L = cond_mask.shape
 
@@ -134,22 +129,9 @@ class CSDI_base(nn.Module):
         imputed_samples = torch.zeros(B, n_samples, K, L).to(self.device)
 
         for i in range(n_samples):
-            # generate noisy observation for unconditional model
-            # if self.is_unconditional == True:
-            #     noisy_obs = observed_data
-            #     noisy_cond_history = []
-            #     for t in range(self.num_steps):
-            #         noise = torch.randn_like(noisy_obs)
-            #         noisy_obs = (self.alpha_hat[t] ** 0.5) * noisy_obs + self.beta[t] ** 0.5 * noise
-            #         noisy_cond_history.append(noisy_obs * cond_mask)
-
             current_sample = torch.randn_like(observed_data)
 
             for t in range(self.num_steps - 1, -1, -1):
-                # if self.is_unconditional == True:
-                #     diff_input = cond_mask * noisy_cond_history[t] + (1.0 - cond_mask) * current_sample
-                #     diff_input = diff_input.unsqueeze(1)  # (B,1,K,L)
-
                 cond_obs = (cond_mask * observed_data).unsqueeze(1)
                 noisy_target = ((1 - cond_mask) * current_sample).unsqueeze(1)
                 diff_input = torch.cat([cond_obs, noisy_target], dim=1)  # (B,2,K,L)
@@ -178,7 +160,6 @@ class CSDI_base(nn.Module):
             observed_tc,
             _
         ) = batch
-        # cond_mask = self.get_forecastmask(observed_mask)
 
         side_info = self.get_side_info(observed_tp,observed_tc, cond_mask)
 
@@ -196,7 +177,6 @@ class CSDI_base(nn.Module):
             cut_length,
         ) = batch
         with torch.no_grad():
-            # cond_mask = self.get_forecastmask(observed_mask)
 
             target_mask = observed_mask - cond_mask
 
@@ -207,26 +187,3 @@ class CSDI_base(nn.Module):
             for i in range(len(cut_length)):  # to avoid double evaluation
                 target_mask[i, ..., 0 : cut_length[i].item()] = 0
         return samples, observed_data, target_mask, observed_mask, observed_tp
-
-    # def process_data(self, batch):
-    #     observed_data = batch["observed_data"].to(self.device).float()
-    #     observed_mask = batch["observed_mask"].to(self.device).float()
-    #     observed_tp = batch["timepoints"].to(self.device).float()
-    #     observed_tc = batch["time_covariates"].to(self.device).long()
-    #     # gt_mask = observed_mask
-
-    #     observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
-    #     observed_mask = observed_mask.permute(0, 2, 1)
-    #     # gt_mask = gt_mask.permute(0, 2, 1)
-
-    #     cut_length = torch.zeros(len(observed_data)).long().to(self.device)
-    #     for_pattern_mask = observed_mask
-
-    #     return (
-    #         observed_data,
-    #         observed_mask,
-    #         observed_tp,
-    #         observed_tc,
-    #         for_pattern_mask,
-    #         cut_length,
-    #     )

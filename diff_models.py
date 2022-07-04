@@ -5,11 +5,18 @@ import math
 from transformer import LinearTranformerEncodeLayer
 
 
-def get_linear_trans(heads=8, channels=64):
-    encoder = LinearTranformerEncodeLayer(
-        channels=channels, head_count=heads
-    )
-    return encoder
+def get_trans_encoder(config):
+    if config['name']=='linear':
+        encoder = LinearTranformerEncodeLayer(
+            channels=config['channels'],
+            head_count=config['nheads'])
+        return encoder
+
+# def get_linear_trans(heads=8, channels=64):
+#     encoder = LinearTranformerEncodeLayer(
+#         channels=channels, head_count=heads
+#     )
+#     return encoder
 
 def get_torch_trans(heads=8, layers=1, channels=64):
     encoder_layer = nn.TransformerEncoderLayer(
@@ -70,12 +77,7 @@ class diff_CSDI(nn.Module):
 
         self.residual_layers = nn.ModuleList(
             [
-                ResidualBlock(
-                    side_dim=config["side_dim"],
-                    channels=self.channels,
-                    diffusion_embedding_dim=config["diffusion_embedding_dim"],
-                    nheads=config["nheads"],
-                )
+                ResidualBlock(config)
                 for _ in range(config["layers"])
             ]
         )
@@ -105,15 +107,20 @@ class diff_CSDI(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, side_dim, channels, diffusion_embedding_dim, nheads):
+    def __init__(self, config):
         super().__init__()
-        self.diffusion_projection = nn.Linear(diffusion_embedding_dim, channels)
-        self.cond_projection = Conv1d_with_init(side_dim, 2 * channels, 1)
-        self.mid_projection = Conv1d_with_init(channels, 2 * channels, 1)
-        self.output_projection = Conv1d_with_init(channels, 2 * channels, 1)
+        self.side_dim = config['side_dim']
+        self.channels = config['channels']
+        self.diffusion_embedding_dim = config['diffusion_embedding_dim']
 
-        self.time_layer = get_linear_trans(heads=nheads, channels=channels)
-        self.feature_layer = get_linear_trans(heads=nheads, channels=channels)
+        self.diffusion_projection = nn.Linear(self.diffusion_embedding_dim, self.channels)
+        self.cond_projection = Conv1d_with_init(self.side_dim, 2 * self.channels, 1)
+        self.mid_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
+        self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
+
+        self.config_tf = config['transformer']
+        self.time_layer = get_trans_encoder(self.config_tf)
+        self.feature_layer = get_trans_encoder(self.config_tf)
 
     def forward_time(self, y, base_shape):
         B, channel, K, L = base_shape
@@ -121,7 +128,6 @@ class ResidualBlock(nn.Module):
             return y
         y = y.reshape(B, channel, K, L).permute(0, 2, 1, 3).reshape(B * K, channel, L)
         y = self.time_layer(y)
-        # y = self.time_layer(y.permute(2, 0, 1)).permute(1, 2, 0)
         y = y.reshape(B, K, channel, L).permute(0, 2, 1, 3).reshape(B, channel, K * L)
         return y
 
@@ -131,7 +137,6 @@ class ResidualBlock(nn.Module):
             return y
         y = y.reshape(B, channel, K, L).permute(0, 3, 1, 2).reshape(B * L, channel, K)
         y = self.feature_layer(y)
-        # y = self.feature_layer(y.permute(2, 0, 1)).permute(1, 2, 0)
         y = y.reshape(B, L, channel, K).permute(0, 2, 3, 1).reshape(B, channel, K * L)
         return y
 

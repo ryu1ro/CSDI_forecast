@@ -4,9 +4,13 @@ diffusion:
   channels: 64
   diffusion_embedding_dim: 128
   layers: 4
-  nheads: 8
   num_steps: 50
   schedule: quad
+  transformer:
+    name: linear
+    nheads: 8
+    channels: 64
+
 model:
   featureemb: 16
   dowemb : 8
