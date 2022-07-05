@@ -4,3 +4,6 @@ solar:
 electricity:
   seq_len: 192
   feature_len: 370
+traffic:
+  seq_len: 192
+  feature_len: 963
