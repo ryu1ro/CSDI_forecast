@@ -11,6 +11,7 @@ diffusion:
     nheads: 8
     channels: 64
     landmarks: 32
+    linformer_k: 128
 
 model:
   featureemb: 16

@@ -210,3 +210,88 @@ class NystromformerEncodeLayer(nn.Module):
     def _ff_block(self, x):
         x = self.linear2(self.dropout(self.activation(self.linear1(x))))
         return self.dropout2(x)
+
+class LinformerAttention(nn.Module):
+    projection_matrix = None
+
+    def __init__(
+        self,
+        seq_len,
+        in_dim=64,
+        num_heads=8,
+        qkv_bias=False,
+        proj_drop=0.,
+        linformer_k=128
+        ):
+        super().__init__()
+
+        self.num_heads = num_heads
+        self.in_dim = in_dim
+        self.linformer_k = linformer_k
+        self.seq_len = seq_len
+        self.head_dim = self.in_dim // self.num_heads
+        self.scale = self.head_dim ** 0.5
+        self.qkv = nn.Linear(in_dim, in_dim * 3, bias=qkv_bias)
+        self.proj = nn.Linear(in_dim, in_dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+        if LinformerAttention.projection_matrix is not None:
+            self.E = LinformerAttention.projection_matrix
+        else:
+            LinformerAttention.projection_matrix = nn.Parameter(torch.Tensor(self.num_heads, self.linformer_k, self.seq_len))
+            torch.nn.init.normal_(LinformerAttention.projection_matrix, std = 0.02)
+            self.E = LinformerAttention.projection_matrix
+
+    def forward(self, x):
+        B, N, C = x.shape
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4) #(qkv, B, heads, N, dim)
+        Q, K, V = qkv[0], qkv[1], qkv[2]
+        Q /= self.scale
+
+        K = torch.matmul(self.E, K)
+        V = torch.matmul(self.E, V)
+
+        dot = torch.matmul(Q, torch.transpose(K, -2, -1))
+        dot = dot / math.sqrt(self.head_dim)
+
+        attn = nn.functional.softmax(dot, dim = -1)
+
+        x = torch.matmul(attn, V)
+        x = x.transpose(1, 2).reshape(B, N, self.in_dim)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+
+        return x
+
+class LinformerEncodeLayer(nn.Module):
+    def __init__(self, seq_len, channels, head_count, linformer_k, dim_feedforward=64, dropout=0.1):
+        super().__init__()
+        self.head_count = head_count
+
+        self.linear1 = nn.Linear(channels, dim_feedforward)
+        self.dropout = nn.Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, channels)
+
+        # self.norm_first = norm_first
+        self.norm1 = nn.LayerNorm(channels)
+        self.norm2 = nn.LayerNorm(channels)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.activation = nn.GELU()
+
+        self.sa_block = LinformerAttention(
+            seq_len=seq_len,
+            in_dim=channels,
+            num_heads=head_count,
+            linformer_k=linformer_k
+        )
+
+    def forward(self, input_):
+        x = input_
+        x = self.norm1(self.sa_block(x.permute(0,2,1))) #(B,channel,L)->(B,L,channel)
+        x = self.norm2(x + self._ff_block(x)).permute(0,2,1) #(B,L,channel)->(B,channel,L)
+        return x
+
+    def _ff_block(self, x):
+        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        return self.dropout2(x)

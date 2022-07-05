@@ -34,10 +34,11 @@ with open(data_path, "r") as f:
 # config["model"]["is_unconditional"] = args.unconditional
 # target_dim = config['target_dim'][args.dataset]
 config["diffusion"]["transformer"]['name'] = args.tf
-
+config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
 print(json.dumps(config, indent=4))
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
+
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 foldername = "./save/" + args.dataset  +'_'+args.tf+ "_seed" + str(args.seed) +'_'+  current_time + "/"

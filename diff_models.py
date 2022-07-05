@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from transformer import LinearTranformerEncodeLayer, NystromformerEncodeLayer
+from transformer import LinearTranformerEncodeLayer, NystromformerEncodeLayer, LinformerEncodeLayer
 
 
 def get_trans_encoder(config):
@@ -18,6 +18,15 @@ def get_trans_encoder(config):
             head_count=config['nheads'],
             num_landmarks=config['landmarks']
             )
+
+    elif config['name']=='linformer':
+        encoder = LinformerEncodeLayer(
+            seq_len=config['seq_len'],
+            channels=config['channels'],
+            head_count=config['nheads'],
+            linformer_k=config['linformer_k']
+        )
+
     elif config['name']=='normal':
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=config['channels'],

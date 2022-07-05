@@ -1,9 +1,12 @@
 solar:
   seq_len: 192
   feature_len: 137
+  batch_size: 8
 electricity:
   seq_len: 192
   feature_len: 370
+  batch_size: 4
 traffic:
   seq_len: 192
   feature_len: 963
+  batch_size: 2
