@@ -61,7 +61,7 @@ class Hourly_Dataset(Dataset):
 
             with open(path, "wb") as f:
                 pickle.dump(
-                    [self.observed_values, self.observed_masks, self.time_covariates], f
+                    [self.observed_values, self.observed_masks, self.time_covariates], f, protocol=4
                 )
         else:  # load datasetfile
             with open(path, "rb") as f:
