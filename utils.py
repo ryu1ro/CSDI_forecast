@@ -16,15 +16,19 @@ def get_forecastmask(observed_mask, forecast_length=24):
     cond_mask[:, :, -forecast_length:] = 0
     return cond_mask
 
-def process_data(batch, device='cuda'):
+def process_data(batch, ae=None, device='cuda'):
     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
     zero_mask = (batch_mean==0)
     batch_mean += zero_mask
     batch['observed_data'] = batch['observed_data']/batch_mean
     batch_mean = batch_mean.to(device).float() #(B, 1, K)
 
-    observed_data = batch["observed_data"].to(device).float()
-    observed_mask = batch["observed_mask"].to(device).float()
+    if ae is not None:
+        observed_data = ae.encoder(batch["observed_data"]).to(device).float()
+        observed_mask = ~torch.isnan(observed_data).to(device).float()
+    else:
+        observed_data = batch["observed_data"].to(device).float()
+        observed_mask = batch["observed_mask"].to(device).float()
     observed_tp = batch["timepoints"].to(device).float()
     observed_tc = batch["time_covariates"].to(device).long()
 
@@ -52,7 +56,8 @@ def train(
     valid_loader=None,
     valid_epoch_interval=5,
     foldername="",
-    device='cuda'
+    device='cuda',
+    ae=None,
 ):
     optimizer = Adam(model.parameters(), lr=config["lr"], weight_decay=1e-6)
     if foldername != "":
@@ -71,7 +76,7 @@ def train(
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
-                train_batch, _ = process_data(train_batch, device=device)
+                train_batch, _ = process_data(train_batch, ae=ae, device=device)
                 loss = model(train_batch)
                 loss.backward()
                 avg_loss += loss.item()
@@ -92,7 +97,7 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
-                        valid_batch, _ = process_data(valid_batch, device=device)
+                        valid_batch, _ = process_data(valid_batch, ae=ae, device=device)
                         loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
@@ -149,7 +154,8 @@ def evaluate(
     scaler=1,
     mean_scaler=0,
     foldername="",
-    device='cuda'
+    device='cuda',
+    ae=None
     ):
 
     with torch.no_grad():
@@ -165,19 +171,24 @@ def evaluate(
         all_generated_samples = []
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
-                test_batch, batch_mean = process_data(test_batch, device=device)
+                c_target = test_batch["observed_data"].to(device).float()
+                observed_points = get_forecastmask(c_target.permute(0,2,1)).permute(0,2,1)
+                eval_points = (observed_points==0)
 
+                test_batch, batch_mean = process_data(test_batch, ae=ae, device=device)
                 output = model.evaluate(test_batch, nsample)
 
-                samples, c_target, eval_points, observed_points, observed_time = output
-                c_target = c_target.permute(0, 2, 1)  # (B,L,K)
-                c_target = c_target * batch_mean
+                samples, _, _, _, observed_time = output
+                if ae is not None:
+                    samples = ae.decoder(samples)
+                # c_target = c_target.permute(0, 2, 1)  # (B,L,K)
+                # c_target = c_target * batch_mean
 
                 batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1)
                 samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
                 samples = samples * batch_mean
-                eval_points = eval_points.permute(0, 2, 1)
-                observed_points = observed_points.permute(0, 2, 1)
+                # eval_points = eval_points.permute(0, 2, 1)
+                # observed_points = observed_points.permute(0, 2, 1)
 
                 samples_median = samples.median(dim=1)
                 all_target.append(c_target)
