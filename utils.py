@@ -85,6 +85,8 @@ def train(
                 )
             lr_scheduler.step()
         if valid_loader is not None and (epoch_no + 1) % valid_epoch_interval == 0:
+            temp_output_path = foldername + "/model_epoch" +str(epoch_no+1)+ ".pth"
+            torch.save(model.state_dict(), temp_output_path)
             model.eval()
             avg_loss_valid = 0
             with torch.no_grad():
