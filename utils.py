@@ -248,3 +248,78 @@ def evaluate(
                 print("RMSE:", np.sqrt(mse_total / evalpoints_total))
                 print("MAE:", mae_total / evalpoints_total)
                 print("CRPS:", CRPS)
+
+def train_ae(
+    model,
+    config,
+    train_loader,
+    valid_loader=None,
+    valid_epoch_interval=5,
+    foldername="",
+    device='cuda'
+):
+    optimizer = Adam(model.parameters(), lr=config["lr"], weight_decay=1e-6)
+    loss_fn = torch.nn.MSELoss(reduction='sum')
+    if foldername != "":
+        output_path = foldername + "/ae.pth"
+
+    p1 = int(0.75 * config["epochs"])
+    p2 = int(0.9 * config["epochs"])
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[p1, p2], gamma=0.1
+    )
+    best_valid_loss = 1e10
+    for epoch_no in range(config["epochs"]):
+        avg_loss = 0
+        model.train()
+        with tqdm(train_loader, mininterval=5.0, maxinterval=50.0) as it:
+            for batch_no, train_batch in enumerate(it, start=1):
+                optimizer.zero_grad()
+
+                train_batch, _ = process_data(train_batch, device=device)
+                x = train_batch[0].permute(0,2,1) #(B,K,L) -> (B,L,K)
+                x_recon = model(x)
+                loss = loss_fn(x, x_recon)
+                loss.backward()
+                avg_loss += loss.item()
+                optimizer.step()
+                it.set_postfix(
+                    ordered_dict={
+                        "avg_epoch_loss": avg_loss / batch_no,
+                        "epoch": epoch_no,
+                    },
+                    refresh=False,
+                )
+            lr_scheduler.step()
+        if valid_loader is not None and (epoch_no + 1) % valid_epoch_interval == 0:
+            # temp_output_path = foldername + "/model_epoch" +str(epoch_no+1)+ ".pth"
+            # torch.save(model.state_dict(), temp_output_path)
+            model.eval()
+            avg_loss_valid = 0
+            with torch.no_grad():
+                with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
+                    for batch_no, valid_batch in enumerate(it, start=1):
+                        valid_batch, _ = process_data(valid_batch, device=device)
+                        x = valid_batch[0].permute(0,2,1) #(B,K,L) -> (B,L,K)
+                        x_recon = model(x)
+                        loss = loss_fn(x, x_recon)
+                        avg_loss_valid += loss.item()
+                        it.set_postfix(
+                            ordered_dict={
+                                "valid_avg_epoch_loss": avg_loss_valid / batch_no,
+                                "epoch": epoch_no,
+                            },
+                            refresh=False,
+                        )
+            if best_valid_loss > avg_loss_valid:
+                best_valid_loss = avg_loss_valid
+                print(
+                    "\n best loss is updated to ",
+                    avg_loss_valid / batch_no,
+                    "at",
+                    epoch_no,
+                )
+
+    if foldername != "":
+        torch.save(model.state_dict(), output_path)
+
