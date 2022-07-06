@@ -24,8 +24,9 @@ def process_data(batch, ae=None, device='cuda'):
     batch_mean = batch_mean.to(device).float() #(B, 1, K)
 
     if ae is not None:
-        observed_data = ae.encoder(batch["observed_data"]).to(device).float()
-        observed_mask = ~torch.isnan(observed_data).to(device).float()
+        observed_data = ae.encoder(batch["observed_data"].to(device).float()).to(device).float()
+        observed_mask = ~(torch.isnan(observed_data))
+        observed_mask = observed_mask.to(device).float()
     else:
         observed_data = batch["observed_data"].to(device).float()
         observed_mask = batch["observed_mask"].to(device).float()
@@ -173,22 +174,20 @@ def evaluate(
             for batch_no, test_batch in enumerate(it, start=1):
                 c_target = test_batch["observed_data"].to(device).float()
                 observed_points = get_forecastmask(c_target.permute(0,2,1)).permute(0,2,1)
-                eval_points = (observed_points==0)
+                eval_points = (observed_points==0).to(device).float()
 
                 test_batch, batch_mean = process_data(test_batch, ae=ae, device=device)
                 output = model.evaluate(test_batch, nsample)
 
-                samples, _, _, _, observed_time = output
+                samples, _, _, _, observed_time = output #samples:(B,nsamples,K,L)
                 if ae is not None:
-                    samples = ae.decoder(samples)
-                # c_target = c_target.permute(0, 2, 1)  # (B,L,K)
-                # c_target = c_target * batch_mean
+                    samples = ae.decoder(samples.permute(0,1,3,2))
+                else:
+                    samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
 
                 batch_mean = batch_mean.unsqueeze(1).expand(-1,nsample,-1,-1)
-                samples = samples.permute(0, 1, 3, 2)  # (B,nsample,L,K)
+
                 samples = samples * batch_mean
-                # eval_points = eval_points.permute(0, 2, 1)
-                # observed_points = observed_points.permute(0, 2, 1)
 
                 samples_median = samples.median(dim=1)
                 all_target.append(c_target)
