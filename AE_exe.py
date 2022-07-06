@@ -40,7 +40,7 @@ with open(foldername + "config.json", "w") as f:
 
 train_loader, valid_loader, test_loader = get_dataloader(
     seed=args.seed,
-    batch_size=config["train"]["batch_size"],
+    batch_size=config["ae"]['batch_size'],
     data_name=args.dataset,
     test_batch_size=1
 )
@@ -53,7 +53,7 @@ model = AutoEncoder_base(
 
 train_ae(
     model,
-    config["train"],
+    config["ae"],
     train_loader,
     valid_loader=valid_loader,
     foldername=foldername,
