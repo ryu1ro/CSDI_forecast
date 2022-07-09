@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from diff_models import diff_CSDI
+from diff_models_conv import diff_CSDI
 
 
 class CSDI_sde(nn.Module):
