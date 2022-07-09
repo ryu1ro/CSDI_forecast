@@ -62,7 +62,7 @@ train_loader, valid_loader, test_loader = get_dataloader(
 if args.ae_path is not None:
     ae = AutoEncoder_base(
         d_in = data_config[args.dataset]['feature_len'],
-    )
+    ).to(args.device)
     ae.load_state_dict(torch.load("./save/AE/" + args.dataset +'/'+ args.ae_path + "/ae.pth"))
     for param in ae.parameters():
         param.requires_grad = False
