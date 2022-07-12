@@ -31,8 +31,6 @@ data_path = "config/dataset.yaml"
 with open(data_path, "r") as f:
     data_config = yaml.safe_load(f)
 
-# config["model"]["is_unconditional"] = args.unconditional
-# target_dim = config['target_dim'][args.dataset]
 config["diffusion"]["transformer"]['name'] = args.tf
 config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
 print(json.dumps(config, indent=4))

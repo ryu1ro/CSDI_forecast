@@ -4,12 +4,6 @@ from torch.optim import Adam
 from tqdm import tqdm
 import pickle
 
-# def calc_batch_mean(batch):
-#     batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
-#     zero_mask = (batch_mean==0)
-#     batch_mean += zero_mask
-#     batch['observed_data'] = batch['observed_data']/batch_mean
-#     return batch, batch_mean
 
 def get_forecastmask(observed_mask, forecast_length=24):
     cond_mask = torch.ones_like(observed_mask) #(B, K, L)
@@ -128,18 +122,27 @@ def calc_denominator(target, eval_points):
 def calc_quantile_CRPS(target, forecast, eval_points, mean_scaler, scaler):
     target = target * scaler + mean_scaler
     forecast = forecast * scaler + mean_scaler
+    forecast_sum = forecast.sum(dim=3)
 
     quantiles = np.arange(0.05, 1.0, 0.05)
     denom = calc_denominator(target, eval_points)
     CRPS = 0
+    CRPS_sum = 0
     for i in range(len(quantiles)):
         q_pred = []
+        q_pred_sum = []
         for j in range(len(forecast)):
             q_pred.append(torch.quantile(forecast[j : j + 1], quantiles[i], dim=1))
+            q_pred_sum.append(torch.quantile(forecast_sum[j : j + 1], quantiles[i], dim=1))
         q_pred = torch.cat(q_pred, 0)
+        q_pred_sum = torch.cat(q_pred_sum, 0)
+
         q_loss = quantile_loss(target, q_pred, quantiles[i], eval_points)
+        q_loss_sum = quantile_loss(target.sum(dim=2), q_pred_sum, quantiles[i], eval_points.sum(dim=2))
+
         CRPS += q_loss / denom
-    return CRPS.item() / len(quantiles)
+        CRPS_sum += q_loss_sum / denom
+    return CRPS.item() / len(quantiles), CRPS_sum.item() / len(quantiles)
 
 
 def evaluate(
@@ -229,7 +232,7 @@ def evaluate(
                     protocol=4
                 )
 
-            CRPS = calc_quantile_CRPS(
+            CRPS, CRPS_sum = calc_quantile_CRPS(
                 all_target, all_generated_samples, all_evalpoint, mean_scaler, scaler
             )
 
@@ -241,6 +244,7 @@ def evaluate(
                         np.sqrt(mse_total / evalpoints_total),
                         mae_total / evalpoints_total,
                         CRPS,
+                        CRPS_sum,
                     ],
                     f,
                     protocol=4
@@ -248,3 +252,4 @@ def evaluate(
                 print("RMSE:", np.sqrt(mse_total / evalpoints_total))
                 print("MAE:", mae_total / evalpoints_total)
                 print("CRPS:", CRPS)
+                print("CRPS_sum:", CRPS_sum)
