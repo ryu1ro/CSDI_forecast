@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from transformer import LinearTranformerEncodeLayer, NystromformerEncodeLayer, LinformerEncodeLayer
+from mlp_mixer import MixerBlock
 
 
 def get_trans_encoder(config):
@@ -130,25 +131,30 @@ class ResidualBlock(nn.Module):
         self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
 
         self.config_tf = config['transformer']
-        self.time_layer = get_trans_encoder(self.config_tf)
-        self.feature_layer = get_trans_encoder(self.config_tf)
-
+        self.time_layer = MixerBlock(
+            tokens_mlp_dim=self.config_tf['seq_len'],
+            channels_mlp_dim=self.config_tf['channels'],
+        )
+        self.feature_layer = MixerBlock(
+            tokens_mlp_dim=config['feature_len'],
+            channels_mlp_dim=self.config_tf['channels'],
+        )
     def forward_time(self, y, base_shape):
         B, channel, K, L = base_shape
         if L == 1:
             return y
-        y = y.reshape(B, channel, K, L).permute(0, 2, 1, 3).reshape(B * K, channel, L)
+        y = y.reshape(B, channel, K, L).permute(0, 2, 3, 1).reshape(B * K, L, channel)
         y = self.time_layer(y)
-        y = y.reshape(B, K, channel, L).permute(0, 2, 1, 3).reshape(B, channel, K * L)
+        y = y.reshape(B, K, L, channel).permute(0, 3, 1, 2).reshape(B, channel, K * L)
         return y
 
     def forward_feature(self, y, base_shape):
         B, channel, K, L = base_shape
         if K == 1:
             return y
-        y = y.reshape(B, channel, K, L).permute(0, 3, 1, 2).reshape(B * L, channel, K)
+        y = y.reshape(B, channel, K, L).permute(0, 3, 2, 1).reshape(B * L, K, channel)
         y = self.feature_layer(y)
-        y = y.reshape(B, L, channel, K).permute(0, 2, 3, 1).reshape(B, channel, K * L)
+        y = y.reshape(B, L, K, channel).permute(0, 3, 2, 1).reshape(B, channel, K * L)
         return y
 
     def forward(self, x, cond_info, diffusion_emb):
