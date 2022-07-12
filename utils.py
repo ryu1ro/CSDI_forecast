@@ -138,7 +138,7 @@ def calc_quantile_CRPS(target, forecast, eval_points, mean_scaler, scaler):
         q_pred_sum = torch.cat(q_pred_sum, 0)
 
         q_loss = quantile_loss(target, q_pred, quantiles[i], eval_points)
-        q_loss_sum = quantile_loss(target.sum(dim=2), q_pred_sum, quantiles[i], eval_points.sum(dim=2))
+        q_loss_sum = quantile_loss(target.sum(dim=2), q_pred_sum, quantiles[i], eval_points.min(dim=2))
 
         CRPS += q_loss / denom
         CRPS_sum += q_loss_sum / denom
