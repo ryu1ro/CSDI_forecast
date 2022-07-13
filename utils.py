@@ -73,7 +73,7 @@ def train(
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
-                train_batch, _ = process_data(train_batch, forecast_length=config['forecast_lenght'], device=device)
+                train_batch, _ = process_data(train_batch, forecast_length=config['forecast_length'], device=device)
                 loss = model(train_batch)
                 loss.backward()
                 avg_loss += loss.item()
