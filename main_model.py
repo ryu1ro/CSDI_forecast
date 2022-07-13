@@ -35,7 +35,7 @@ class CSDI_base(nn.Module):
         config_diff['transformer']['seq_len']=self.seq_len
 
         input_dim = 2
-        if config['method'] == 'mlp':
+        if config['diffusion']['method'] == 'mlp':
             self.diffmodel = diff_CSDI_mlp(config_diff, input_dim)
         else:
             self.diffmodel = diff_CSDI(config_diff, input_dim)
