@@ -10,12 +10,12 @@ def get_forecastmask(observed_mask, forecast_length=24):
     cond_mask[:, :, -forecast_length:] = 0
     return cond_mask
 
-def process_data(batch, device='cuda'):
-    batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
-    zero_mask = (batch_mean==0)
-    batch_mean += zero_mask
-    batch['observed_data'] = batch['observed_data']/batch_mean
-    batch_mean = batch_mean.to(device).float() #(B, 1, K)
+def process_data(batch, forecast_length=24 ,device='cuda'):
+    # batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
+    # zero_mask = (batch_mean==0)
+    # batch_mean += zero_mask
+    # batch['observed_data'] = batch['observed_data']/batch_mean
+    # batch_mean = batch_mean.to(device).float() #(B, 1, K)
 
     observed_data = batch["observed_data"].to(device).float()
     observed_mask = batch["observed_mask"].to(device).float()
@@ -24,7 +24,15 @@ def process_data(batch, device='cuda'):
 
     observed_data = observed_data.permute(0, 2, 1) #(B, L, K) -> (B, K, L)
     observed_mask = observed_mask.permute(0, 2, 1)
-    cond_mask = get_forecastmask(observed_mask).to(device).float()
+    cond_mask = get_forecastmask(observed_mask, forecast_length=forecast_length).to(device).float()
+
+    batch_mean = (observed_data*cond_mask).sum(dim=2, keepdim=True)/cond_mask.sum(dim=2, keepdim=True)
+    zero_mask = (batch_mean==0)
+    batch_mean += zero_mask
+    batch_mean = batch_mean.to(device).float() #(B, K, 1)
+
+    observed_data = observed_data/batch_mean
+    batch_mean = batch_mean.permute(0, 2, 1)
 
     cut_length = torch.zeros(len(observed_data)).long().to(device)
     for_pattern_mask = observed_mask
@@ -65,7 +73,7 @@ def train(
             for batch_no, train_batch in enumerate(it, start=1):
                 optimizer.zero_grad()
 
-                train_batch, _ = process_data(train_batch, device=device)
+                train_batch, _ = process_data(train_batch, forecast_length=config['forecast_lenght'], device=device)
                 loss = model(train_batch)
                 loss.backward()
                 avg_loss += loss.item()
@@ -86,7 +94,7 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
-                        valid_batch, _ = process_data(valid_batch, device=device)
+                        valid_batch, _ = process_data(valid_batch, forecast_length=config['forecast_lenght'], device=device)
                         loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
@@ -152,7 +160,8 @@ def evaluate(
     scaler=1,
     mean_scaler=0,
     foldername="",
-    device='cuda'
+    device='cuda',
+    forecast_length=24,
     ):
 
     with torch.no_grad():
@@ -168,7 +177,7 @@ def evaluate(
         all_generated_samples = []
         with tqdm(test_loader, mininterval=5.0, maxinterval=50.0) as it:
             for batch_no, test_batch in enumerate(it, start=1):
-                test_batch, batch_mean = process_data(test_batch, device=device)
+                test_batch, batch_mean = process_data(test_batch, forecast_length=forecast_length, device=device)
 
                 output = model.evaluate(test_batch, nsample)
 

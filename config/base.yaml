@@ -16,8 +16,7 @@ diffusion:
 
 model:
   featureemb: 16
-  dowemb : 8
-  houremb: 8
+  covariateemb: 8
   timeemb: 128
 train:
   batch_size: 8

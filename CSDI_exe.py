@@ -38,6 +38,7 @@ print(json.dumps(config, indent=4))
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
+config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 foldername = "./save/"+ args.dataset +'/' + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"
@@ -55,7 +56,9 @@ train_loader, valid_loader, test_loader = get_dataloader(
 
 model = CSDI_base(
     config=config,
-    device=args.device).to(args.device)
+    device=args.device,
+    is_wiki=(args.dataset=='wiki')
+    ).to(args.device)
 
 if args.modelfolder == "":
     train(

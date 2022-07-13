@@ -1,12 +1,20 @@
 solar:
   seq_len: 192
+  forecast_len: 24
   feature_len: 137
   batch_size: 8
 electricity:
   seq_len: 192
+  forecast_len: 24
   feature_len: 370
   batch_size: 4
 traffic:
   seq_len: 192
+  forecast_len: 24
   feature_len: 963
-  batch_size: 2
+  batch_size: 4
+wiki:
+  seq_len: 120
+  forecast_len: 30
+  feature_len: 2000
+  batch_size: 4

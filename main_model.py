@@ -6,29 +6,47 @@ from diff_models_mlp import diff_CSDI_mlp
 
 
 class CSDI_base(nn.Module):
-    def __init__(self, config, device):
+    def __init__(self, config, device, is_wiki=False):
         super().__init__()
         self.device = device
         self.feature_len = config["diffusion"]["feature_len"] #number of features K
         self.seq_len = config["diffusion"]["seq_len"]
         self.emb_time_dim = config["model"]["timeemb"]
         self.emb_feature_dim = config["model"]["featureemb"]
-        self.emb_dow_dim = config["model"]["dowemb"]
-        self.emb_hour_dim = config["model"]["houremb"]
-
-        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_dow_dim + self.emb_hour_dim
+        self.emb_covariate_dim = config["model"]["covariateemb"]
+        self.is_wiki = is_wiki
+        # self.emb_hour_dim = config["model"]["houremb"]
+        self.n_covariates = 3 if self.is_wiki else 2
+        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_covariate_dim * self.n_covariates
 
         self.emb_total_dim += 1  # for conditional mask
         self.embed_layer = nn.Embedding(
             num_embeddings=self.feature_len, embedding_dim=self.emb_feature_dim
         )
         #time covariates embedding
-        self.embed_layer_dow = nn.Embedding(
-            num_embeddings=self.seq_len, embedding_dim=self.emb_dow_dim
-        )
-        self.embed_layer_hour = nn.Embedding(
-            num_embeddings=self.seq_len, embedding_dim=self.emb_hour_dim
-        )
+        if is_wiki:
+            self.embed_layer_dow = nn.Embedding(
+                num_embeddings=self.seq_len, embedding_dim=self.emb_covariate_dim
+            )
+            self.embed_layer_day = nn.Embedding(
+                num_embeddings=self.seq_len, embedding_dim=self.emb_covariate_dim
+            )
+            self.embed_layer_month = nn.Embedding(
+                num_embeddings=self.seq_len, embedding_dim=self.emb_covariate_dim
+            )
+            self.embed_list = [
+                self.embed_layer_dow, self.embed_layer_day, self.embed_layer_month
+            ]
+        else:
+            self.embed_layer_dow = nn.Embedding(
+                num_embeddings=self.seq_len, embedding_dim=self.emb_covariate_dim
+            )
+            self.embed_layer_hour = nn.Embedding(
+                num_embeddings=self.seq_len, embedding_dim=self.emb_covariate_dim
+            )
+            self.embed_list = [
+                self.embed_layer_dow, self.embed_layer_hour
+            ]
 
         config_diff = config["diffusion"]
         config_diff["side_dim"] = self.emb_total_dim
@@ -75,12 +93,19 @@ class CSDI_base(nn.Module):
         )  # (K,emb)
         feature_embed = feature_embed.unsqueeze(0).unsqueeze(0).expand(B, L, -1, -1)
 
-        dow_embed = self.embed_layer_dow(observed_tc[:,:,0])    #(B,L,emb_dim)
-        hour_embed = self.embed_layer_hour(observed_tc[:,:,1])  #(B,L,emb_dim)
-        dow_embed = dow_embed.unsqueeze(2).expand(-1,-1,K,-1)
-        hour_embed = hour_embed.unsqueeze(2).expand(-1,-1,K,-1)
+        list_side_info = [time_embed, feature_embed]
 
-        side_info = torch.cat([time_embed, feature_embed, dow_embed, hour_embed], dim=-1)  # (B,L,K,*)
+        for i, embed_layer in enumerate(self.embed_list):
+            temp_embed = embed_layer(observed_tc[:,:,i]) #(B,L,emb_dim)
+            temp_embed = temp_embed.unsqueeze(2).expand(-1,-1,K,-1)
+            list_side_info.append(temp_embed)
+
+        # dow_embed = self.embed_layer_dow(observed_tc[:,:,0])    #(B,L,emb_dim)
+        # hour_embed = self.embed_layer_hour(observed_tc[:,:,1])  #(B,L,emb_dim)
+        # dow_embed = dow_embed.unsqueeze(2).expand(-1,-1,K,-1)
+        # hour_embed = hour_embed.unsqueeze(2).expand(-1,-1,K,-1)
+
+        side_info = torch.cat(list_side_info, dim=-1)  # (B,L,K,*)
         side_info = side_info.permute(0, 3, 2, 1)  # (B,*,K,L)
 
         side_mask = cond_mask.unsqueeze(1)  # (B,1,K,L)
