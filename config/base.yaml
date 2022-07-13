@@ -6,6 +6,7 @@ diffusion:
   layers: 4
   num_steps: 50
   schedule: quad
+  method: mlp
   transformer:
     name: linear
     nheads: 8

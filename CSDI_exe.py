@@ -16,6 +16,7 @@ parser.add_argument("--seed", type=int, default=1)
 parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
+parser.add_argument("--method", type=str, default='mlp')
 parser.add_argument("--tf", type=str, default='linear')
 parser.add_argument("--landmarks", type=int, default=32)
 
@@ -36,7 +37,7 @@ config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
 print(json.dumps(config, indent=4))
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
-
+config["diffusion"]["method"] = args.method
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 foldername = "./save/"+ args.dataset +'/' + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"

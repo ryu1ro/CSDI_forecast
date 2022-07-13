@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from diff_models import diff_CSDI
+from diff_models_mlp import diff_CSDI_mlp
 
 
 class CSDI_base(nn.Module):
@@ -34,7 +35,10 @@ class CSDI_base(nn.Module):
         config_diff['transformer']['seq_len']=self.seq_len
 
         input_dim = 2
-        self.diffmodel = diff_CSDI(config_diff, input_dim)
+        if config['method'] == 'mlp':
+            self.diffmodel = diff_CSDI_mlp(config_diff, input_dim)
+        else:
+            self.diffmodel = diff_CSDI(config_diff, input_dim)
 
         # parameters for diffusion models
         self.num_steps = config_diff["num_steps"]
