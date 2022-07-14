@@ -22,8 +22,8 @@ class MixerBlock(nn.Module):
         self,
         tokens_mlp_dim=16,
         channels_mlp_dim=1024,
-        tokens_hidden_dim=64,
-        channels_hidden_dim=64
+        tokens_hidden_dim=128,
+        channels_hidden_dim=128
         ):
         super().__init__()
         self.ln=nn.LayerNorm(channels_mlp_dim)
