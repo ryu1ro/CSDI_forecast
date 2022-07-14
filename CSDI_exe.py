@@ -78,5 +78,6 @@ evaluate(
     nsample=args.nsample,
     scaler=1,
     foldername=foldername,
-    device=args.device
+    device=args.device,
+    forecast_length=config['train']['forecast_length']
     )

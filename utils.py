@@ -94,7 +94,7 @@ def train(
             with torch.no_grad():
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
-                        valid_batch, _ = process_data(valid_batch, forecast_length=config['forecast_lenght'], device=device)
+                        valid_batch, _ = process_data(valid_batch, forecast_length=config['forecast_length'], device=device)
                         loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
