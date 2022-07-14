@@ -13,8 +13,13 @@ traffic:
   forecast_len: 24
   feature_len: 963
   batch_size: 4
+taxi:
+  seq_len: 72
+  forecast_len: 24
+  feature_len: 1214
+  batch_size: 4
 wiki:
   seq_len: 120
   forecast_len: 30
   feature_len: 2000
-  batch_size: 4
+  batch_size: 2
