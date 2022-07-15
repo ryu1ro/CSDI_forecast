@@ -17,7 +17,7 @@ class CSDI_base(nn.Module):
         self.is_wiki = is_wiki
         # self.emb_hour_dim = config["model"]["houremb"]
         self.n_covariates = 3 if self.is_wiki else 2
-        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_covariate_dim * self.n_covariates
+        self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim #+ self.emb_covariate_dim * self.n_covariates
 
         self.emb_total_dim += 1  # for conditional mask
         self.embed_layer = nn.Embedding(
@@ -95,10 +95,10 @@ class CSDI_base(nn.Module):
 
         list_side_info = [time_embed, feature_embed]
 
-        for i, embed_layer in enumerate(self.embed_list):
-            temp_embed = embed_layer(observed_tc[:,:,i]) #(B,L,emb_dim)
-            temp_embed = temp_embed.unsqueeze(2).expand(-1,-1,K,-1)
-            list_side_info.append(temp_embed)
+        # for i, embed_layer in enumerate(self.embed_list):
+        #     temp_embed = embed_layer(observed_tc[:,:,i]) #(B,L,emb_dim)
+        #     temp_embed = temp_embed.unsqueeze(2).expand(-1,-1,K,-1)
+        #     list_side_info.append(temp_embed)
 
         # dow_embed = self.embed_layer_dow(observed_tc[:,:,0])    #(B,L,emb_dim)
         # hour_embed = self.embed_layer_hour(observed_tc[:,:,1])  #(B,L,emb_dim)
