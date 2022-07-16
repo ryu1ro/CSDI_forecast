@@ -17,8 +17,9 @@ parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--method", type=str, default='mlp')
-parser.add_argument("--tf", type=str, default='linear')
-# parser.add_argument("--landmarks", type=int, default=32)
+parser.add_argument("--tf", type=str, default='nystrom')
+parser.add_argument("--mlpdim", type=int, default=256)
+parser.add_argument("--landmarks", type=int, default=32)
 
 args = parser.parse_args()
 print(args)
@@ -38,13 +39,17 @@ if args.method=='tf':
         tf_config = yaml.safe_load(f)
     tf_config['name'] = args.tf
     config['diffusion']['transformer'] = tf_config
+    config['diffusion']['transformer']['landmarks'] = args.landmarks
+
 
 # config["diffusion"]["transformer"]['name'] = args.tf
 config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
+config["diffusion"]["mlp_hidden_dim"] = args.mlpdim
 config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
+
 print(json.dumps(config, indent=4))
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

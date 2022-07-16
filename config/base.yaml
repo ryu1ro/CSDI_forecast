@@ -7,7 +7,7 @@ diffusion:
   num_steps: 50
   schedule: quad
   method: mlp
-
+  mlp_hidden_dim: 256
 model:
   featureemb: 16
   covariateemb: 8

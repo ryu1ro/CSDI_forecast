@@ -102,6 +102,8 @@ class ResidualBlock(nn.Module):
         self.time_layer = MixerBlock(
             tokens_mlp_dim=config['seq_len'],
             channels_mlp_dim=self.channels,
+            tokens_hidden_dim=config['mlp_hidden_dim'],
+            channels_hidden_dim=config['mlp_hidden_dim'],
         )
         self.feature_layer = MixerBlock(
             tokens_mlp_dim=config['feature_len'],
