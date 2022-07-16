@@ -18,7 +18,7 @@ parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--method", type=str, default='mlp')
 parser.add_argument("--tf", type=str, default='linear')
-parser.add_argument("--landmarks", type=int, default=32)
+# parser.add_argument("--landmarks", type=int, default=32)
 
 args = parser.parse_args()
 print(args)
@@ -32,13 +32,20 @@ data_path = "config/dataset.yaml"
 with open(data_path, "r") as f:
     data_config = yaml.safe_load(f)
 
-config["diffusion"]["transformer"]['name'] = args.tf
+if args.method=='tf':
+    tf_path = "config/tf.yaml"
+    with open(tf_path, "r") as f:
+        tf_config = yaml.safe_load(f)
+    tf_config['name'] = args.tf
+    config['diffusion']['transformer'] = tf_config
+
+# config["diffusion"]["transformer"]['name'] = args.tf
 config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
-print(json.dumps(config, indent=4))
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
 config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
+print(json.dumps(config, indent=4))
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 foldername = "./save/"+ args.dataset +'/' + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"

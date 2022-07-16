@@ -130,6 +130,7 @@ class ResidualBlock(nn.Module):
         self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
 
         self.config_tf = config['transformer']
+        self.config_tf['seq_len'] = config['seq_len']
         self.time_layer = get_trans_encoder(self.config_tf)
         self.feature_layer = get_trans_encoder(self.config_tf)
 

@@ -98,14 +98,14 @@ class ResidualBlock(nn.Module):
         self.mid_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
         self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
 
-        self.config_tf = config['transformer']
+        # self.config_tf = config['transformer']
         self.time_layer = MixerBlock(
-            tokens_mlp_dim=self.config_tf['seq_len'],
-            channels_mlp_dim=self.config_tf['channels'],
+            tokens_mlp_dim=config['seq_len'],
+            channels_mlp_dim=self.channels,
         )
         self.feature_layer = MixerBlock(
             tokens_mlp_dim=config['feature_len'],
-            channels_mlp_dim=self.config_tf['channels'],
+            channels_mlp_dim=self.channels,
         )
     def forward_time(self, y, base_shape):
         B, channel, K, L = base_shape
