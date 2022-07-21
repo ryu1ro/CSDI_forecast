@@ -17,9 +17,10 @@ parser.add_argument("--modelfolder", type=str, default="")
 parser.add_argument("--nsample", type=int, default=100)
 parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--method", type=str, default='mlp')
-parser.add_argument("--tf", type=str, default='nystrom')
 parser.add_argument("--mlpdim", type=int, default=256)
-parser.add_argument("--landmarks", type=int, default=32)
+parser.add_argument('--eta', type=float, default=1.0)
+# parser.add_argument("--landmarks", type=int, default=32)
+# parser.add_argument("--tf", type=str, default='nystrom')
 
 args = parser.parse_args()
 print(args)
@@ -49,6 +50,7 @@ config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
 config["diffusion"]["mlp_hidden_dim"] = args.mlpdim
 config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
+config['train']['eta'] = args.eta
 
 print(json.dumps(config, indent=4))
 
@@ -91,5 +93,6 @@ evaluate(
     scaler=1,
     foldername=foldername,
     device=args.device,
-    forecast_length=config['train']['forecast_length']
+    forecast_length=config['train']['forecast_length'],
+    eta=config['train']['eta'],
     )

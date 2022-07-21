@@ -11,12 +11,6 @@ def get_forecastmask(observed_mask, forecast_length=24):
     return cond_mask
 
 def process_data(batch, forecast_length=24 ,device='cuda'):
-    # batch_mean = batch['observed_data'].mean(dim=1, keepdim=True)
-    # zero_mask = (batch_mean==0)
-    # batch_mean += zero_mask
-    # batch['observed_data'] = batch['observed_data']/batch_mean
-    # batch_mean = batch_mean.to(device).float() #(B, 1, K)
-
     observed_data = batch["observed_data"].to(device).float()
     observed_mask = batch["observed_mask"].to(device).float()
     observed_tp = batch["timepoints"].to(device).float()
@@ -95,7 +89,8 @@ def train(
                 with tqdm(valid_loader, mininterval=5.0, maxinterval=50.0) as it:
                     for batch_no, valid_batch in enumerate(it, start=1):
                         valid_batch, _ = process_data(valid_batch, forecast_length=config['forecast_length'], device=device)
-                        loss = model(valid_batch, is_train=0)
+                        loss = model(valid_batch)
+                        # loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
                             ordered_dict={
