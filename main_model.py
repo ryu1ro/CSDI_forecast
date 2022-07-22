@@ -68,6 +68,8 @@ class CSDI_base(nn.Module):
             self.beta = np.linspace(
                 config_diff["beta_start"], config_diff["beta_end"], self.num_steps
             )
+        self.sample_skip = config_diff["num_steps"]//config_diff["s_steps"]
+        self.sample_seq =  range(0, self.num_steps, self.sample_skip)
 
         self.alpha_hat = 1 - self.beta
         self.alpha = np.cumprod(self.alpha_hat)
@@ -148,33 +150,40 @@ class CSDI_base(nn.Module):
 
         return total_input
 
-    def impute(self, observed_data, cond_mask, side_info, n_samples, eta=1):
+    def sampling(
+        self,
+        observed_data,
+        cond_mask,
+        side_info,
+        n_samples,
+        eta=1,
+        ):
         B, K, L = observed_data.shape
 
-        imputed_samples = torch.zeros(B, n_samples, K, L).to(self.device)
+        forecast_samples = torch.zeros(B, n_samples, K, L).to(self.device)
+        seq = self.sample_seq
+        seq_next = seq_next = [-1] + list(seq[:-1])
+        alpha = torch.cat([torch.ones(1,1,1), self.alpha_torch],dim=0) #(num_steps+1,1,1)
 
         for i in range(n_samples):
             current_sample = torch.randn_like(observed_data)
 
-            for t in range(self.num_steps - 1, 0, -1):
+            for t, t_next in zip(reversed(seq), reversed(seq_next)):
                 cond_obs = (cond_mask * observed_data).unsqueeze(1)
                 noisy_target = ((1 - cond_mask) * current_sample).unsqueeze(1)
                 diff_input = torch.cat([cond_obs, noisy_target], dim=1)  # (B,2,K,L)
                 et = self.diffmodel(diff_input, side_info, torch.tensor([t]).to(self.device))
 
-                at = self.alpha_torch[t]
-                at_next = self.alpha_torch[t-1]
+                at = alpha[t+1]
+                at_next = alpha[t_next+1]
                 x0_t = (current_sample - et * (1 - at).sqrt()) / at.sqrt()
                 c1 = (eta * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
                 c2 = ((1 - at_next) - c1 ** 2).sqrt()
-                current_sample = at_next.sqrt() * x0_t + c2 * et
+                current_sample = at_next.sqrt() * x0_t + c1 * torch.randn_like(current_sample) + c2 * et
 
-                if t > 1:
-                    noise = torch.randn_like(current_sample)
-                    current_sample += c1 * noise
 
-            imputed_samples[:, i] = current_sample.detach()
-        return imputed_samples
+            forecast_samples[:, i] = current_sample.detach()
+        return forecast_samples
 
     def forward(self, batch, is_train=1):
         (
@@ -207,7 +216,7 @@ class CSDI_base(nn.Module):
 
             side_info = self.get_side_info(observed_tp, observed_tc, cond_mask)
 
-            samples = self.impute(observed_data, cond_mask, side_info, n_samples, eta=eta)
+            samples = self.sampling(observed_data, cond_mask, side_info, n_samples, eta=eta)
 
             for i in range(len(cut_length)):  # to avoid double evaluation
                 target_mask[i, ..., 0 : cut_length[i].item()] = 0

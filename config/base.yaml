@@ -5,6 +5,7 @@ diffusion:
   diffusion_embedding_dim: 128
   layers: 4
   num_steps: 50
+  s_steps: 50
   schedule: quad
   method: mlp
   mlp_hidden_dim: 256
