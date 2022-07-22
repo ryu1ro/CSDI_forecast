@@ -157,6 +157,7 @@ def evaluate(
     foldername="",
     device='cuda',
     forecast_length=24,
+    eta=1.0
     ):
 
     with torch.no_grad():
@@ -174,7 +175,7 @@ def evaluate(
             for batch_no, test_batch in enumerate(it, start=1):
                 test_batch, batch_mean = process_data(test_batch, forecast_length=forecast_length, device=device)
 
-                output = model.evaluate(test_batch, nsample)
+                output = model.evaluate(test_batch, nsample, eta=eta)
 
                 samples, c_target, eval_points, observed_points, observed_time = output
                 c_target = c_target.permute(0, 2, 1)  # (B,L,K)
