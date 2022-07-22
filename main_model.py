@@ -163,7 +163,7 @@ class CSDI_base(nn.Module):
         forecast_samples = torch.zeros(B, n_samples, K, L).to(self.device)
         seq = self.sample_seq
         seq_next = seq_next = [-1] + list(seq[:-1])
-        alpha = torch.cat([torch.ones(1,1,1), self.alpha_torch],dim=0) #(num_steps+1,1,1)
+        alpha = torch.cat([torch.ones(1,1,1).to(self.device), self.alpha_torch],dim=0) #(num_steps+1,1,1)
 
         for i in range(n_samples):
             current_sample = torch.randn_like(observed_data)
