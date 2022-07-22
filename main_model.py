@@ -68,7 +68,7 @@ class CSDI_base(nn.Module):
             self.beta = np.linspace(
                 config_diff["beta_start"], config_diff["beta_end"], self.num_steps
             )
-        self.sample_skip = config_diff["num_steps"]//config_diff["s_steps"]
+        self.sample_skip = config_diff["num_steps"]//config_diff["tau_steps"]
         self.sample_seq =  range(0, self.num_steps, self.sample_skip)
 
         self.alpha_hat = 1 - self.beta
@@ -177,7 +177,11 @@ class CSDI_base(nn.Module):
                 at = alpha[t+1]
                 at_next = alpha[t_next+1]
                 x0_t = (current_sample - et * (1 - at).sqrt()) / at.sqrt()
-                c1 = (eta * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
+                if eta<=1:
+                    c1 = (eta * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
+                else:
+                    c1 = (((1 - at / at_next) ).sqrt())
+
                 c2 = ((1 - at_next) - c1 ** 2).sqrt()
                 current_sample = at_next.sqrt() * x0_t + c1 * torch.randn_like(current_sample) + c2 * et
 
