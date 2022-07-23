@@ -100,29 +100,29 @@ class ResidualBlock(nn.Module):
 
         # self.config_tf = config['transformer']
         self.mixer_block_1 = MixerBlock(
-            tokens_mlp_dim=34*48,
-            channels_mlp_dim=1024,
+            tokens_mlp_dim=137*48,
+            channels_mlp_dim=512,
             tokens_hidden_dim=256,
             channels_hidden_dim=256,
         )
         self.mixer_block_2 = MixerBlock(
-            tokens_mlp_dim=34*48,
-            channels_mlp_dim=1024,
+            tokens_mlp_dim=137*48,
+            channels_mlp_dim=512,
             tokens_hidden_dim=256,
             channels_hidden_dim=256,
         )
         self.embed = nn.Conv2d(
             self.channels,
-            1024,
-            kernel_size=(4,4),
-            stride=(4,4)
+            512,
+            kernel_size=(1,4),
+            stride=(1,4)
             )
         self.embed_transposed = nn.ConvTranspose2d(
-            1024,
+            512,
             self.channels,
-            kernel_size=(4,4),
-            stride=(4,4),
-            output_padding=(1,0)
+            kernel_size=(1,4),
+            stride=(1,4),
+            # output_padding=(1,0)
         )
 
     def forward(self, x, cond_info, diffusion_emb):
@@ -136,8 +136,8 @@ class ResidualBlock(nn.Module):
         y = self.embed(y)
         bs,c,h,w = y.shape
         y = y.view(bs,c,-1).transpose(1,2)
-        y = self.mixer_block_1(y)
-        y = self.mixer_block_2(y).transpose(1,2).reshape(bs,c,h,w)
+        y = self.mixer_block_1(y).transpose(1,2).reshape(bs,c,h,w)
+        # y = self.mixer_block_2(y).transpose(1,2).reshape(bs,c,h,w)
         y = self.embed_transposed(y).reshape(B,channel,-1) # (B,channel,K*L)
 
         y = self.mid_projection(y)  # (B,2*channel,K*L)
