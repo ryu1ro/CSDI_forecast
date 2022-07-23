@@ -103,7 +103,7 @@ class ResidualBlock(nn.Module):
             tokens_mlp_dim=34*48,
             channels_mlp_dim=512,
             tokens_hidden_dim=256,
-            channels_hidden_dim=256,
+            channels_hidden_dim=1024,
         )
         self.embed = nn.Conv2d(
             self.channels,
@@ -118,27 +118,6 @@ class ResidualBlock(nn.Module):
             stride=(4,4),
             output_padding=(1,0)
         )
-        # self.feature_layer = MixerBlock(
-        #     tokens_mlp_dim=config['feature_len'],
-        #     channels_mlp_dim=self.channels,
-        # )
-    # def forward_time(self, y, base_shape):
-    #     B, channel, K, L = base_shape
-    #     if L == 1:
-    #         return y
-    #     y = y.reshape(B, channel, K, L).permute(0, 2, 3, 1).reshape(B * K, L, channel)
-    #     y = self.time_layer(y)
-    #     y = y.reshape(B, K, L, channel).permute(0, 3, 1, 2).reshape(B, channel, K * L)
-    #     return y
-
-    # def forward_feature(self, y, base_shape):
-    #     B, channel, K, L = base_shape
-    #     if K == 1:
-    #         return y
-    #     y = y.reshape(B, channel, K, L).permute(0, 3, 2, 1).reshape(B * L, K, channel)
-    #     y = self.feature_layer(y)
-    #     y = y.reshape(B, L, K, channel).permute(0, 3, 2, 1).reshape(B, channel, K * L)
-    #     return y
 
     def forward(self, x, cond_info, diffusion_emb):
         B, channel, K, L = x.shape
