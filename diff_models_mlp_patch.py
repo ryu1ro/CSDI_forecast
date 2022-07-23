@@ -100,29 +100,29 @@ class ResidualBlock(nn.Module):
 
         # self.config_tf = config['transformer']
         self.mixer_block_1 = MixerBlock(
-            tokens_mlp_dim=137*96,
-            channels_mlp_dim=256,
+            tokens_mlp_dim=17*24,
+            channels_mlp_dim=512,
             tokens_hidden_dim=256,
-            channels_hidden_dim=256,
+            channels_hidden_dim=2048,
         )
-        self.mixer_block_2 = MixerBlock(
-            tokens_mlp_dim=137*96,
-            channels_mlp_dim=256,
-            tokens_hidden_dim=256,
-            channels_hidden_dim=256,
-        )
+        # self.mixer_block_2 = MixerBlock(
+        #     tokens_mlp_dim=17*24,
+        #     channels_mlp_dim=1024,
+        #     tokens_hidden_dim=512,
+        #     channels_hidden_dim=512,
+        # )
         self.embed = nn.Conv2d(
             self.channels,
-            256,
-            kernel_size=(1,2),
-            stride=(1,2)
+            512,
+            kernel_size=(8,8),
+            stride=(8,8)
             )
         self.embed_transposed = nn.ConvTranspose2d(
-            256,
+            512,
             self.channels,
-            kernel_size=(1,2),
-            stride=(1,2),
-            # output_padding=(1,0)
+            kernel_size=(8,8),
+            stride=(8,8),
+            output_padding=(1,0)
         )
 
     def forward(self, x, cond_info, diffusion_emb):
