@@ -99,7 +99,13 @@ class ResidualBlock(nn.Module):
         self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
 
         # self.config_tf = config['transformer']
-        self.mixer_block = MixerBlock(
+        self.mixer_block_1 = MixerBlock(
+            tokens_mlp_dim=34*48,
+            channels_mlp_dim=256,
+            tokens_hidden_dim=128,
+            channels_hidden_dim=512,
+        )
+        self.mixer_block_2 = MixerBlock(
             tokens_mlp_dim=34*48,
             channels_mlp_dim=512,
             tokens_hidden_dim=256,
@@ -130,7 +136,8 @@ class ResidualBlock(nn.Module):
         y = self.embed(y)
         bs,c,h,w = y.shape
         y = y.view(bs,c,-1).transpose(1,2)
-        y = self.mixer_block(y).transpose(1,2).reshape(bs,c,h,w)
+        y = self.mixer_block_1(y)
+        y = self.mixer_block_2(y).transpose(1,2).reshape(bs,c,h,w)
         y = self.embed_transposed(y).reshape(B,channel,-1) # (B,channel,K*L)
 
         y = self.mid_projection(y)  # (B,2*channel,K*L)
