@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from diff_models import diff_CSDI
 from diff_models_mlp import diff_CSDI_mlp
+from diff_models_mlp_patch import diff_CSDI_mlp_patch
 
 
 class CSDI_base(nn.Module):
@@ -55,6 +56,8 @@ class CSDI_base(nn.Module):
         input_dim = 2
         if config['diffusion']['method'] == 'mlp':
             self.diffmodel = diff_CSDI_mlp(config_diff, input_dim)
+        elif config['diffusion']['method'] == 'mlp_patch':
+            self.diffmodel = diff_CSDI_mlp_patch(config_diff, input_dim)
         else:
             self.diffmodel = diff_CSDI(config_diff, input_dim)
 
