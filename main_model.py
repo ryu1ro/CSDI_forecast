@@ -179,10 +179,13 @@ class CSDI_base(nn.Module):
                 x0_t = (current_sample - et * (1 - at).sqrt()) / at.sqrt()
                 if eta<=1:
                     c1 = (eta * ((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
+                    c2 = ((1 - at_next) - c1 ** 2).sqrt()
                 else:
                     c1 = (((1 - at / at_next) ).sqrt())
+                    eta_1 = (((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
+                    c2 = ((1 - at_next) - eta_1 ** 2).sqrt()
 
-                c2 = ((1 - at_next) - c1 ** 2).sqrt()
+                # c2 = ((1 - at_next) - c1 ** 2).sqrt()
                 current_sample = at_next.sqrt() * x0_t + c1 * torch.randn_like(current_sample) + c2 * et
 
 
