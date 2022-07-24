@@ -100,16 +100,16 @@ class ResidualBlock(nn.Module):
 
         # self.config_tf = config['transformer']
         self.mixer_block_1 = MixerBlock(
-            tokens_mlp_dim=17*24,
-            channels_mlp_dim=1024,
-            tokens_hidden_dim=1024,
-            channels_hidden_dim=1024,
+            tokens_mlp_dim=137*48,
+            channels_mlp_dim=512,
+            tokens_hidden_dim=512,
+            channels_hidden_dim=512,
         )
         self.mixer_block_2 = MixerBlock(
-            tokens_mlp_dim=17*24,
-            channels_mlp_dim=1024,
-            tokens_hidden_dim=1024,
-            channels_hidden_dim=1024,
+            tokens_mlp_dim=137*48,
+            channels_mlp_dim=512,
+            tokens_hidden_dim=512,
+            channels_hidden_dim=512,
         )
         # self.mixer_block_3 = MixerBlock(
         #     tokens_mlp_dim=17*24,
@@ -125,12 +125,12 @@ class ResidualBlock(nn.Module):
         # )
         self.embed = nn.Conv2d(
             self.channels,
-            1024,
+            512,
             kernel_size=(1,4),
             stride=(1,4)
             )
         self.embed_transposed = nn.ConvTranspose2d(
-            1024,
+            512,
             self.channels,
             kernel_size=(1,4),
             stride=(1,4),
