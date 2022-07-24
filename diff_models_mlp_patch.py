@@ -111,6 +111,18 @@ class ResidualBlock(nn.Module):
             tokens_hidden_dim=1024,
             channels_hidden_dim=1024,
         )
+        self.mixer_block_3 = MixerBlock(
+            tokens_mlp_dim=17*24,
+            channels_mlp_dim=1024,
+            tokens_hidden_dim=1024,
+            channels_hidden_dim=1024,
+        )
+        self.mixer_block_4 = MixerBlock(
+            tokens_mlp_dim=17*24,
+            channels_mlp_dim=1024,
+            tokens_hidden_dim=1024,
+            channels_hidden_dim=1024,
+        )
         self.embed = nn.Conv2d(
             self.channels,
             1024,
@@ -137,7 +149,9 @@ class ResidualBlock(nn.Module):
         bs,c,h,w = y.shape
         y = y.view(bs,c,-1).transpose(1,2)
         y = self.mixer_block_1(y)   #.transpose(1,2).reshape(bs,c,h,w)
-        y = self.mixer_block_2(y).transpose(1,2).reshape(bs,c,h,w)
+        y = self.mixer_block_2(y)
+        y = self.mixer_block_3(y)
+        y = self.mixer_block_4(y).transpose(1,2).reshape(bs,c,h,w)
         y = self.embed_transposed(y).reshape(B,channel,-1) # (B,channel,K*L)
 
         y = self.mid_projection(y)  # (B,2*channel,K*L)
