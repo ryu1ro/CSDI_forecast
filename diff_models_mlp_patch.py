@@ -126,15 +126,15 @@ class ResidualBlock(nn.Module):
         self.embed = nn.Conv2d(
             self.channels,
             1024,
-            kernel_size=(8,8),
-            stride=(8,8)
+            kernel_size=(1,4),
+            stride=(1,4)
             )
         self.embed_transposed = nn.ConvTranspose2d(
             1024,
             self.channels,
-            kernel_size=(8,8),
-            stride=(8,8),
-            output_padding=(1,0)
+            kernel_size=(1,4),
+            stride=(1,4),
+            # output_padding=(1,0)
         )
 
     def forward(self, x, cond_info, diffusion_emb):
