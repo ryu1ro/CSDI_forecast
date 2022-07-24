@@ -101,14 +101,13 @@ class ResidualBlock(nn.Module):
         # self.config_tf = config['transformer']
         self.mlp_blocks=[]
         for _ in range(4):
-            self.mlp_blocks.append(
-                MixerBlock(
-                    tokens_mlp_dim=17*24,
-                    channels_mlp_dim=1024,
-                    tokens_hidden_dim=1024,
-                    channels_hidden_dim=1024,
-                    )
+            mixer_block = MixerBlock(
+                tokens_mlp_dim=17*24,
+                channels_mlp_dim=1024,
+                tokens_hidden_dim=1024,
+                channels_hidden_dim=1024,
                 )
+            self.mlp_blocks.append(mixer_block)
 
         self.embed = nn.Conv2d(
             self.channels,
