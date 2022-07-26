@@ -19,7 +19,7 @@ parser.add_argument("--dataset", type=str, default='solar')
 parser.add_argument("--method", type=str, default='mlp')
 parser.add_argument("--mlpdim", type=int, default=128)
 parser.add_argument('--eta', type=float, default=1.0)
-# parser.add_argument('--steps', type=int, default=50)
+parser.add_argument('--steps', type=int, default=50)
 # parser.add_argument('--tau', type=int, default=50)
 
 # parser.add_argument("--landmarks", type=int, default=32)
@@ -52,7 +52,7 @@ config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
 config["diffusion"]["mlp_hidden_dim"] = args.mlpdim
-# config["diffusion"]["num_steps"] = args.steps
+config["diffusion"]["num_steps"] = args.steps
 # config["diffusion"]["num_steps"] = args.tau
 config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
 config['train']['eta'] = args.eta
@@ -60,7 +60,7 @@ config['train']['eta'] = args.eta
 print(json.dumps(config, indent=4))
 
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-foldername = "./save/"+ args.dataset +'/' + args.dataset  + "_seed" + str(args.seed) +'_'+  current_time + "/"
+foldername = "./save/"+ args.dataset +'/' + args.dataset  + "_seed" + str(args.seed) +'_steps'+str(args.steps) +'_eta'+str(args.eta)+'_'+ current_time + "/"
 print('model folder:', foldername)
 os.makedirs(foldername, exist_ok=True)
 with open(foldername + "config.json", "w") as f:
