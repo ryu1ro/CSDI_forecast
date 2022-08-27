@@ -20,10 +20,6 @@ parser.add_argument("--method", type=str, default='mlp')
 parser.add_argument("--mlpdim", type=int, default=128)
 parser.add_argument('--eta', type=float, default=1.0)
 parser.add_argument('--steps', type=int, default=50)
-# parser.add_argument('--tau', type=int, default=50)
-
-# parser.add_argument("--landmarks", type=int, default=32)
-# parser.add_argument("--tf", type=str, default='nystrom')
 
 args = parser.parse_args()
 print(args)
@@ -45,15 +41,12 @@ if args.method=='tf':
     config['diffusion']['transformer'] = tf_config
     config['diffusion']['transformer']['landmarks'] = args.landmarks
 
-
-# config["diffusion"]["transformer"]['name'] = args.tf
 config["train"]["batch_size"] = data_config[args.dataset]['batch_size']
 config["diffusion"]["seq_len"] = data_config[args.dataset]['seq_len']
 config["diffusion"]["feature_len"] = data_config[args.dataset]['feature_len']
 config["diffusion"]["method"] = args.method
 config["diffusion"]["mlp_hidden_dim"] = args.mlpdim
 config["diffusion"]["num_steps"] = args.steps
-# config["diffusion"]["num_steps"] = args.tau
 config['train']['forecast_length'] = data_config[args.dataset]['forecast_len']
 config['train']['eta'] = args.eta
 

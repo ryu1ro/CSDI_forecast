@@ -98,7 +98,6 @@ class ResidualBlock(nn.Module):
         self.mid_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
         self.output_projection = Conv1d_with_init(self.channels, 2 * self.channels, 1)
 
-        # self.config_tf = config['transformer']
         self.time_layer = MixerBlock(
             tokens_mlp_dim=config['seq_len'],
             channels_mlp_dim=self.channels,

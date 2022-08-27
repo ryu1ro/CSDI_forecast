@@ -24,7 +24,6 @@ class Hourly_Dataset(Dataset):
     def __init__(self, data_name='solar', time_length=168+24, seed=0,  use_index_list=None,):
         self.data_name = data_name
         self.eval_length = time_length
-        # np.random.seed(seed)  # seed for ground truth choice
 
         self.observed_values = []
         self.observed_masks = []
@@ -148,7 +147,6 @@ class Wiki_Dataset(Dataset):
         ):
         self.data_name = 'wiki'
         self.eval_length = 90+30
-        # np.random.seed(seed)  # seed for ground truth choice
 
         self.observed_values = []
         self.observed_masks = []
@@ -274,7 +272,6 @@ class Taxi_Dataset(Dataset):
         self.eval_length = 48 + 24
         self.is_train = is_train
         data_suffix = '_train' if is_train else '_test'
-        # np.random.seed(seed)  # seed for ground truth choice
 
         self.observed_values = []
         self.observed_masks = []
@@ -292,7 +289,6 @@ class Taxi_Dataset(Dataset):
             df['hour'] = df['date'].dt.hour
 
             df = df.drop(columns='date')
-            # df = df.drop(0)
             total_time_steps = len(df)
             for time_point in range(total_time_steps - self.eval_length + 1):
                 try:

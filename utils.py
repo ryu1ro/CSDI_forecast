@@ -29,7 +29,6 @@ def process_data(batch, forecast_length=24 ,device='cuda'):
     batch_mean = batch_mean.permute(0, 2, 1)
 
     cut_length = torch.zeros(len(observed_data)).long().to(device)
-    for_pattern_mask = observed_mask
 
     return (
         observed_data,
@@ -37,7 +36,6 @@ def process_data(batch, forecast_length=24 ,device='cuda'):
         cond_mask,
         observed_tp,
         observed_tc,
-        # for_pattern_mask,
         cut_length,
     ), batch_mean
 
@@ -90,7 +88,6 @@ def train(
                     for batch_no, valid_batch in enumerate(it, start=1):
                         valid_batch, _ = process_data(valid_batch, forecast_length=config['forecast_length'], device=device)
                         loss = model(valid_batch)
-                        # loss = model(valid_batch, is_train=0)
                         avg_loss_valid += loss.item()
                         it.set_postfix(
                             ordered_dict={

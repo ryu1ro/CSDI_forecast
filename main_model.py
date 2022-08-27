@@ -15,7 +15,6 @@ class CSDI_base(nn.Module):
         self.emb_feature_dim = config["model"]["featureemb"]
         self.emb_covariate_dim = config["model"]["covariateemb"]
         self.is_wiki = is_wiki
-        # self.emb_hour_dim = config["model"]["houremb"]
         self.n_covariates = 3 if self.is_wiki else 2
         self.emb_total_dim = self.emb_time_dim + self.emb_feature_dim + self.emb_covariate_dim * self.n_covariates
 
@@ -185,7 +184,6 @@ class CSDI_base(nn.Module):
                     eta_1 = (((1 - at / at_next) * (1 - at_next) / (1 - at)).sqrt())
                     c2 = ((1 - at_next) - eta_1 ** 2).sqrt()
 
-                # c2 = ((1 - at_next) - c1 ** 2).sqrt()
                 current_sample = at_next.sqrt() * x0_t + c1 * torch.randn_like(current_sample) + c2 * et
 
 
